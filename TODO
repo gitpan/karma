@@ -7,5 +7,7 @@ DESCRIPTION
 
 1.0.0
     o remaining Win32 problems, check email notification
+0.9.8
     o decide on how to handle redo-log switching exception, a la D. Lawlie
     o alertlog monitoring should be verifiable even when no errors found
+    o extents checking should be >=, should use %, not number for thresholds

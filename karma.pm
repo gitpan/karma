@@ -53,8 +53,8 @@ sub getDayMinutes ($);
 # perl standards like real number version numbers, so for
 # now we'll drop the linux convention...
 #
-$main::KVERSION='0.9.6';
-$main::VERSION='0.96';
+$main::KVERSION='0.9.7';
+$main::VERSION='0.97';
 $main::DEBUG_LEVEL = 0;
 
 #

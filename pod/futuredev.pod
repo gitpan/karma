@@ -137,6 +137,9 @@ o past 1 or 2 days worth of log data (with link and info page)
 =item
 o log statuses over time, use cricket for graphing
 
+=item
+o table only data which we can include in another html page
+
 =back
 
 

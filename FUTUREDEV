@@ -46,3 +46,4 @@ Details
     o mySQL, other db modules
     o past 1 or 2 days worth of log data (with link and info page)
     o log statuses over time, use cricket for graphing
+    o table only data which we can include in another html page

@@ -1,0 +1,299 @@
+<HTML>
+<HEAD>
+<TITLE>Karma - How to Monitor Multiple Oracle Databases</TITLE>
+<LINK REV="made" HREF="mailto:root@porky.devel.redhat.com">
+</HEAD>
+
+<BODY>
+
+<!-- INDEX BEGIN -->
+
+<UL>
+
+	<LI><A HREF="#NAME">NAME</A>
+	<LI><A HREF="#DESCRIPTION">DESCRIPTION</A>
+	<LI><A HREF="#Introduction">Introduction</A>
+	<LI><A HREF="#What_it_does_and_how">What it does and how</A>
+	<LI><A HREF="#Installation">Installation</A>
+	<LI><A HREF="#Configuration_and_Setup">Configuration and Setup</A>
+	<LI><A HREF="#Supported_platforms">Supported platforms </A>
+	<LI><A HREF="#Future_Development">Future Development</A>
+</UL>
+<!-- INDEX END -->
+
+<HR>
+<P>
+<H1><A NAME="NAME">NAME</A></H1>
+<P>
+Karma - How to Monitor Multiple Oracle Databases
+
+<body bgcolor="#3399cc">
+
+<P>
+<HR>
+<H1><A NAME="DESCRIPTION">DESCRIPTION</A></H1>
+<P>
+An Oracle DBA has many responsibilities and day-to-day tasks to complete.
+Karma was developed with the idea that many of these tasks can be
+automated, thus freeing time for other useful work. This presentation will
+discuss setup and configuration of Karma to provide you with a simple
+web-interface for monitoring an unlimited number of Oracle databases. 
+
+<P>
+<HR>
+<H1><A NAME="Introduction">Introduction</A></H1>
+<P>
+In the course of being an Oracle DBA, one is confronted with many varied
+tasks. Some of them are mundane and repetitive, while others require
+thinking, and debugging. Karma was developed with the idea of eliminating
+many of the day-to-day mundane and repetitive tasks so a DBA can be left to
+spend time more wisely.
+
+<P>
+You'll find Karma is quite useful especially when you need to keep a
+watchful eye on many databases, as it can monitor a lot of important Oracle
+vital signs like latch contention, hit ratios, tablespace quotas, max
+extents, redo log switching, rollback segment contention, fragmentation,
+slow sql queries, alert log errors, and replication's deferred transaction,
+and error queues. In addition, Karma can be configured to send email on
+warning or alert conditions, even notifying you by alphanumeric pager if
+necessary. In short, Karma can help you be more proactive with respect to
+the databases you manage.
+
+<P>
+<HR>
+<H1><A NAME="What_it_does_and_how">What it does and how</A></H1>
+<P>
+Karma is a web-based application, however, it has some very important
+differences from a normal CGI based application. First a little bit of
+background.
+
+<P>
+With a CGI, generally, requesting a given url is actually a request to
+apache to run a certain program. In the case of a database application, it
+would connect to the database, perform some function, disconnect, and
+return an HTML page based on the results of the database requests. This is
+how dynamic web content is created on the web. A lot of improvement over
+this has occured since it's beginnings, like mod_perl, an apache module
+which caches your code, as well as the database connections, making them
+persistent. All in all, these changes provided dramatic improvement over
+earlier non-cached solutions, but still present some problems for a
+database monitor.
+
+<P>
+In the case of Karma, this traditional scheme posed some problems. Besides
+the fact that CGI applications, if not written very cleanly, can pose some
+security risk, they also constitute a hit each time they are called. If
+many users wanted to keep an eye on the databases monitored each time they
+loaded the karma main page, they would be hitting the database. What's more
+there'd be no way to provide email notification in such a scheme. There'd
+be no program running until the user initiated in from the browser.  
+
+<P>
+For these reasons I decided NOT to make this application a simple CGI.
+Instead, I built it as a unix daemon. It is started once, and kept running
+in the background until explicitely told to quit. While running, it wakes
+up periodically, checks up on the database, generates the relevant HTML
+pages, and if necessary, sends out email notification of any warning or
+alert conditions. That's it, it then happily goes back to sleep.
+
+<P>
+The HTML pages that are generated are static, so no matter how often you
+load them in your browser, you DO NOT hit the database at all. It's like
+magic! The real beauty is in the refresh tag. The main HTML page includes a
+tag which tells the browser to every so often reload the page. This is set
+to match the wakeup time of Karma, so when a new page is generated, the
+browser will just make a new request.
+
+<P>
+<HR>
+<H1><A NAME="Installation">Installation</A></H1>
+<P>
+Honestly, it's not all bad. First you'll need Oracle installed of course.
+Not for the database you'll be monitoring, but you'll need to install the
+client software to get the Perl DBD-Oracle module to work. In fact, you'll
+need a bit more than just the client software as DBD-Oracle is a compile C
+program, using the OCI Oracle library to access the database. Include the
+Pro*C, and database itself when you install to be sure you get everything
+DBD-Oracle needs to compile. You can delete much of it later.
+
+<P>
+To install a Perl module, you need only (1) uncompress and untar, (2)
+generate the makefile, (3) make test, and finally (4) install.
+
+<P>
+<CODE>$ gunzip &lt; DBI-1.03.tar.gz | tar xvf -</CODE>
+
+
+
+<P>
+<CODE>$ cd DBI-1.03</CODE>
+
+
+
+<P>
+<CODE>$ perl Makefile.PL</CODE>
+
+
+
+<P>
+<CODE>$ make test</CODE>
+
+
+
+<P>
+then as root:
+
+<P>
+<CODE>$ make install</CODE>
+
+
+
+<P>
+You'll follow the same steps to install DBD-Oracle.  
+
+<P>
+After that, you'll be ready to do the same for Karma. It's got a standard
+perl installer, with a Makefile.PL so you can follow the same steps above
+to install.
+
+<P>
+<HR>
+<H1><A NAME="Configuration_and_Setup">Configuration and Setup</A></H1>
+<P>
+Get started quickly by editing the basic.conf file. The following gives a
+rough example. The first line simply specifies the database to connect to.
+Use one for each database you'd like to monitor. The fields are:
+
+<P>
+&lt;1&gt;:&lt;2&gt;:&lt;3&gt;:&lt;4&gt;:&lt;5&gt;
+
+<P>
+1 - 'karma' a reserved word meaning this is a db spec line
+
+<P>
+2 - pref group, can be *, 'default', blank, or any string
+
+<P>
+3 - db, from your tnsnames.ora file
+
+<P>
+4 - username
+
+<P>
+5 - password
+
+<P>
+Below that you'll find the services you'd like to monitor. These are
+reserved words, and although case is not important they must be spelled
+correctly, or they'll be ignored.
+
+<P>
+--
+<CODE>karma:*:AEON:karma:amrak</CODE>
+
+
+
+<P>
+<CODE>redolog</CODE>
+
+<CODE>rollback</CODE>
+
+<CODE>tablespace</CODE>
+
+<CODE>slowsql</CODE>
+
+<CODE>hitratios</CODE>
+
+<CODE>fragmentation</CODE>
+
+<CODE>extents</CODE>
+
+<CODE>latch</CODE>
+--
+
+<P>
+Other features can be enabled such as non-blinking icons, email
+notification, or preference groups (different monitoring for each group).
+See other *.conf files for details.
+
+<P>
+Finally you'll want to start the daemon:
+
+<P>
+<CODE>$ karmactl -s -c myfile.conf</CODE>
+
+
+
+<P>
+If your config file is karma.conf, and is in the current directory, then
+you don't have to specify it with <CODE>-c</CODE>. Use <CODE>-h</CODE> for help.
+
+<P>
+<HR>
+<H1><A NAME="Supported_platforms">Supported platforms</A></H1>
+<P>
+Karma should run on any unix platform which Oracle provides client libs and
+OCI for. I've confirmed it's working on Linux, Sun Solaris, and DG-UX. As
+far as NT and other Win32 platforms are concerned, it is working, but with
+some issues. Essentially, the unix fork () system call is not supported
+under Win32, as well as various signals. These are all used by karmactl,
+the assistant utility which can start and stop the daemon. For that reason,
+for now karma only works by calling the daemon directly on Win32 platforms.
+Something like this should work:
+
+<P>
+<CODE>$ perl karmad -d 2 -c c:\mydir\karma.conf -k c:\mydir\doc_root</CODE>
+
+
+
+<P>
+Note that <CODE>-d</CODE> option. This turns debugging on, and cannot be used from the karmactl
+utility. You may find it useful.
+
+<P>
+<HR>
+<H1><A NAME="Future_Development">Future Development</A></H1>
+<P>
+I have a LOT of great ideas for what I want to do with Karma, but have not
+had time to get to them all. 2.0 will be coming, that is, once 1.0 is out!
+Here are some of the ideas I have so far:
+
+<DL>
+<DT><STRONG><A NAME="item_o">o lynx browser support (no frames, no tables?)</A></STRONG><DD>
+<DT><STRONG>o configuration check tool (reads karma.conf file)</STRONG><DD>
+<DT><STRONG>o web interface</STRONG><DD>
+<DT><STRONG>o help page for adding new services</STRONG><DD>
+<DT><STRONG>o more services monitored</STRONG><DD>
+<DL>
+<DT><STRONG><A NAME="item__">- hitratios dictcache, rowcache</A></STRONG><DD>
+<DT><STRONG>- listener log monitor</STRONG><DD>
+<DT><STRONG>- trace/core file monitor</STRONG><DD>
+<DT><STRONG>- monitor sqlnet performance</STRONG><DD>
+<DT><STRONG>- archive dest directory</STRONG><DD>
+<DT><STRONG>- backup success</STRONG><DD>
+<DT><STRONG>- buffer busy waits</STRONG><DD>
+<DT><STRONG>- locks</STRONG><DD>
+</DL>
+<DT><STRONG>o karma.conf</STRONG><DD>
+<DL>
+<DT><STRONG>- specify frames/no frames/no tables support</STRONG><DD>
+<DT><STRONG>- specify no html pages generated, text only</STRONG><DD>
+<DT><STRONG>- vertical/horizontal arrangement option</STRONG><DD>
+</DL>
+<DT><STRONG>o whom to contact messages</STRONG><DD>
+<DT><STRONG>o look at adding graphing support with</STRONG><DD>
+<a href="http://www.munitions.com/~jra/cricket/">
+
+<P>
+Cricket
+
+</a>
+
+<DT><STRONG>o resetting services, once you've seen them, turn back to green
+  (not sure if this fits into the non-CGI thinking so far...)</STRONG><DD>
+<DT><STRONG>o 7.x issues</STRONG><DD>
+</DL>
+</BODY>
+
+</HTML>

@@ -45,6 +45,9 @@ o D.C.Lawie        duncanl@demon.net
 o Eric Whiting     ewhiting@amis.com
 
 =item
+o Erich Morisse    esm@3le.com
+
+=item
 o Jim Walski       jwalski@deltanet.com
 
 =item

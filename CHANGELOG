@@ -188,3 +188,13 @@ Version 0.9.5
     o fixed misc "use of unitialized values" errors
     o karmagentd exits if can't find or open alert.log
     o cleaned up some "" where '' are better
+Version 0.9.6
+  3.16.00
+
+    o fixed big email notification bug
+    o blinking icons config directive fixed, warn_blink=[false|no|0],
+      alert_blink=[false|no|0], otherwise blinking icons are used
+    o list of valid service names if debug_level = 2
+    o karma returns error if ORACLE_HOME set to invalid directory
+    o fragmentation checks only first 100 fragmented objs
+Version 0.9.7
