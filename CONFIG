@@ -268,7 +268,7 @@ Using the karmactl utility
     stop or start the daemon, get status on a running daemon, and
     reread the config file. To get help do the following:
 
-    `$ ./karmactl -h'
+    `$ bin/karmactl -h'
 
     `-h print help and exit' `-v print version and exit' `-w print
     warranty and exit' `-s start karmad daemon' `-p stop karmad
@@ -284,9 +284,9 @@ Using the karmactl utility
 
     Get the status of a running karma daemon as follows:
 
-    `$ ./karmactl -s' Starting karma daemon...
+    `$ bin/karmactl -s' Starting karma daemon...
 
-    `$ ./karmactl -t' karmad started at 19:46 pid:2853 Using EMAIL
+    `$ bin/karmactl -t' karmad started at 19:46 pid:2853 Using EMAIL
     for notification DB:AEON UP, Prefgroup:default - services: 19:46
     -- os 19:46 -- mts 19:46 OK tablespace 19:46 OK slowsql 19:46 OK
     up 19:46 WARN hitratios 19:46 OK rollback 19:46 -- alertlog

@@ -14,80 +14,17 @@ versions of karma.
 =over 4
 
 =item
-o std perl installer
+o further karmagentd testing, code cleanup (alert.log)
 
 =item
-o further karmagentd testing, code cleanup (alert.log)
+o remaining Win32 problems, check email notification
+
+=item
+o add pod's to Makefile.PL
 
 =item
 o db down respects unmonitored services
 
-=item
-o info pages include warning, alert values
-
-=item
-o remaining Win32 problems - valid services no go
-
-=item
-o a tbsp with an autoextend datafile should always be green
-
-=item
-o check MIN_WAKEUP
-
-=item
-o check factory defaults
-
 =back
 
-=head1 Possible For 1.0
 
-=over 4
-
-=item
-o should checking status, or forcing refresh send out emails?
-
-=item
-o 7.x issues
-
-=over 4
-
-=item
-- no autoextend column
-
-=item
-- first_time column in v$log is varchar2 (date in 8.x
-
-=back
-
-=item
-o NT issues
-
-=over 4
-
-=item
-- signal handling
-
-=item
-- named pipe
-
-=item
-- backgrounding job
-
-=item
-- test mail sending (Mail::Send seems to exist and work...)
-
-=back
-
-=item
-o notify full includes url to info page
-
-=over 4
-
-=item
-- this will require a new line in the config file like
-  SERVER:http://www.something.com/karma onto which the rest
-  can be appended
-
-=back
-
-=back

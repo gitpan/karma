@@ -20,7 +20,7 @@ o Edit the doc_root/karma.conf file
 o Make sure your database is running, and from the karma
   directory issue this command:
 
-C<$ ./karmactl -s>
+C<$ bin/karmactl -s>
 
 =item
 o Open the file doc_root/index.html with a browser

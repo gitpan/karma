@@ -28,3 +28,14 @@ Details
     o look at adding graphing support http://www.munitions.com/~jra/cricket/
     o resetting services, once you've seen them, turn back to green
       (not sure if this fits into the non-CGI thinking so far...)
+    o 7.x issues
+    - no autoextend column
+    - first_time column in v$log is varchar2 (date in 8.x
+    o info pages include warning, alert values
+    o NT issues
+    - signal handling
+    - named pipe
+    o notify full includes url to info page this will require a new line
+      in the config file like SERVER:http://www.something.com/karma onto
+      which the rest can be appended
+    o simplifying code by using views in "karma" schema

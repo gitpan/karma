@@ -21,7 +21,7 @@ just start it like this:
 =over 4
 
 =item
-C<$ ./karmactl -s>
+C<$ bin/karmactl -s>
 
 =back
 

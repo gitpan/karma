@@ -6,25 +6,7 @@ DESCRIPTION
     particular versions of karma.
 
 1.0.0
-    o std perl installer
     o further karmagentd testing, code cleanup (alert.log)
+    o remaining Win32 problems, check email notification
+    o add pod's to Makefile.PL
     o db down respects unmonitored services
-    o info pages include warning, alert values
-    o remaining Win32 problems - valid services no go
-    o a tbsp with an autoextend datafile should always be green
-    o check MIN_WAKEUP
-    o check factory defaults
-Possible For 1.0
-    o should checking status, or forcing refresh send out emails?
-    o 7.x issues
-    - no autoextend column
-    - first_time column in v$log is varchar2 (date in 8.x
-    o NT issues
-    - signal handling
-    - named pipe
-    - backgrounding job
-    - test mail sending (Mail::Send seems to exist and work...)
-    o notify full includes url to info page
-    - this will require a new line in the config file like
-      SERVER:http://www.something.com/karma onto which the rest
-      can be appended

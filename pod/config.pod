@@ -357,7 +357,7 @@ to more easily manage a running karma daemon.  You can use it to
 stop or start the daemon, get status on a running daemon, and
 reread the config file.  To get help do the following:
 
-C<$ ./karmactl C<-h>>
+C<$ bin/karmactl C<-h>>
 
 C<-h print help and exit>
 C<-v print version and exit>
@@ -376,10 +376,10 @@ C<./karmactl [C<-h>|C<-v>|-w|-s|-p|-t|-r|-d] [-l file] [-c file] [-k dir]>
 
 Get the status of a running karma daemon as follows:
 
-C<$ ./karmactl -s>
+C<$ bin/karmactl -s>
 Starting karma daemon...
 
-C<$ ./karmactl -t>
+C<$ bin/karmactl -t>
 karmad started at 19:46
   pid:2853
   Using EMAIL for notification

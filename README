@@ -14,7 +14,7 @@ DESCRIPTION
     Next start karmad running. You can use the -h option for help,
     or just start it like this:
 
-    `$ ./karmactl -s'
+    `$ bin/karmactl -s'
 karmactl
     start, stop, and query a running karmad daemon. use -h option
     for help

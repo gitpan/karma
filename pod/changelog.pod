@@ -459,5 +459,28 @@ o fixed bug when no karma.conf file found, and karma uses DBI_USER,
 
 =back
 
+=head2 12.18.99
+
+=over 4
+
+=item
+o added Makefile.PL, tested
+
+=item
+o info column titles moved to $main::titles at top
+
+=item
+o reviewed factory defaults
+
+=item
+o a tbsp with an autoextend datafile is always green
+
+=item
+o fixed bug with min_wakeup time (refresh interval)
+
+=back
+
 =cut
+
+
 

@@ -50,7 +50,11 @@ sub getDayMinutes ($);
 #
 # current version
 #
-$main::VERSION="0.9.3";
+# perl standards like real number version numbers, so for
+# now we'll drop the linux convention...
+#
+$main::KVERSION="0.9.4";
+$main::VERSION="0.94";
 $main::DEBUG_LEVEL = 0;
 
 #
@@ -73,8 +77,8 @@ sub printVersion () {
 	"  Karma v$main::VERSION Copyright (C) 1999 Sean Hull <shull\@pobox.com>\n",
 	"  Karma comes with ABSOLUTELY NO WARRANTY; for details\n",
 	"  type \"karmad -w\".  This is free software, and you are\n",
-	"  welcome to redistribute it under certain conditions.\n";
-
+	"  welcome to redistribute it under certain conditions.\n\n";
+    
     exit ;
 }
 
@@ -361,6 +365,10 @@ Karma is a multi-purpose database monitor which provides various
 monitoring functionality to free the DBA from many day-to-day
 monitoring tasks, allowing time to be spent on more in-depth
 tuning and administration.
+
+=head1 SYNOPSIS
+
+This is the synopsis.
 
 =head1 NOTES
 

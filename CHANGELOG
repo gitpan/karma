@@ -165,3 +165,10 @@ Version 0.9.3
       debugMessage calls throughout the code.
     o fixed bug when no karma.conf file found, and karma uses DBI_USER,
       DBI_PASS, DBI_DSN...
+  12.18.99
+
+    o added Makefile.PL, tested
+    o info column titles moved to $main::titles at top
+    o reviewed factory defaults
+    o a tbsp with an autoextend datafile is always green
+    o fixed bug with min_wakeup time (refresh interval)
