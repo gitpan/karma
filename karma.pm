@@ -53,9 +53,9 @@ sub getDayMinutes ($);
 # perl standards like real number version numbers, so for
 # now we'll drop the linux convention...
 #
-$main::KVERSION="0.9.4";
-$main::VERSION="0.94";
-$main::DEBUG_LEVEL = 0;
+$main::KVERSION="0.9.5";
+$main::VERSION="0.95";
+$main::DEBUG_LEVEL = undef;
 
 #
 # documentation colors
@@ -273,7 +273,10 @@ sub padNum ($$) {
 #
 #-----------------------------------------------------------------------
 sub daemonize () {
-    debugMessage ("Backgrounding via daemonize...\n", 1);
+
+    # this breaks things because the logfile may not be open yet
+    #
+    #debugMessage ("Backgrounding via daemonize...\n", 1);
     chdir '/'               or die "daemonize - Can't chdir to /: $!";
     open STDIN, '/dev/null' or die "daemonize - Can't read /dev/null: $!";
     open STDOUT, '>/dev/null'
@@ -317,7 +320,7 @@ sub getDayMinutes ($) {
 sub debugMessage ($$) {
     my ($inMessage, $inLevel) = @_;
 
-    if (defined ($inLevel)) {
+    if (defined $inLevel) {
 	if ($main::DEBUG_LEVEL >= $inLevel) {
 	    if (defined ($main::logfile)) {
 		print $main::logfile $inMessage;
@@ -327,9 +330,9 @@ sub debugMessage ($$) {
 	}
     } elsif ($main::DEBUG_LEVEL > 0) {
 	if (defined ($main::logfile)) {
-	    print $main::logfile ("$inMessage\n");
+	    print $main::logfile $inMessage;
 	} else {
-	    print ("$inMessage\n");
+	    print $inMessage;
 	}
     }
 }

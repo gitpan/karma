@@ -34,7 +34,7 @@ end of things.
 Beyond that, configure alertlog monitoring like you would any
 other facility in Karma.  Here's an example:
 
-I<alertlog:X:Y:Z>
+C<alertlog:X:Y:Z>
 
 Where X is the number of minutes between checks of the alert.log
 monitoring table.  Y is the number of minutes within which to
@@ -42,7 +42,7 @@ consider the error and WARNING level situation.  Z is the number
 of minutes within which to consider the error a WARNING level
 situation.  Here's a recommended configuration:
 
-I<alertlog:15:86400:60>
+C<alertlog:15:86400:60>
 
 This tells karma to monitor every 15 minutes, consider any ORA-xxxx
 errors within a day to be a WARNING situation, and any ORA-xxxx
@@ -66,7 +66,7 @@ warned or alerted of a situation.  If your tables become populated
 rapidly, you may want to know earlier when they require adjustments
 or rebuilding.  Here's an example:
 
-I<extents:15:2:1>
+C<extents:15:2:1>
 
 This directs karma to check every 15 minutes for extents which are 
 within 2 extents of their max (WARNING), or 1 extent (ALERT).  The
@@ -101,7 +101,7 @@ check:
 At any rate, karma can be setup to be strict or not so strict. Configure karma
 for fragmentation monitoring as follows:
 
-I<fragmentation:X:Y:Z>
+C<fragmentation:X:Y:Z>
 
 Where X, as usual is frequency in minutes at which to check for
 fragmentation.  Y is the WARNING value, and Z is the ALERT value.
@@ -117,7 +117,7 @@ I/O.
 We monitor data block buffer hitratio, dictionary cache hitratio
 and so on.  Configure hitratio monitoring as follows:
 
-I<hitratios:5:95:70>
+C<hitratios:5:95:70>
 
 In this example we're checking every 5 minutes.  If the hitratio is
 below 95%, we're at WARNING level, and if it drops below 70%, we're 
@@ -129,7 +129,7 @@ No help yet.
 
 Here's how you would configure it:
 
-I<latch:5:X:Y>
+C<latch:5:X:Y>
 
 In this example we're checking every 5 minutes.
 We're flagging a WARNING if the load average goes above X
@@ -148,7 +148,7 @@ dispatcher processes.  Karma provides this type of monitoring
 and can be configured to be easy or strict with it's enforcement
 and alert levels.  Configure it as follows:
 
-I<mts:10:50:75>
+C<mts:10:50:75>
 
 Here's we've configured karma to check up on MTS process contention
 every 10 minutes.  If the processes are more than 50% busy, we flag
@@ -166,7 +166,7 @@ karmagentd for more information on configuring that end of things.
 Beyond that, configure os monitoring like you would any
 other facility in Karma.  Here's an example:
 
-I<os:1:5:10>
+C<os:1:5:10>
 
 In this example we're checking every minute.  This is not a cpu
 or database intensive task, so checking every minute should be 
@@ -187,7 +187,7 @@ quickly lest we degrade the databases performance.
 Below is an example of how to configure monitoring
 redo-log switching in karma:
 
-I<redolog:5:30:15>
+C<redolog:5:30:15>
 
 In this example we're monitoring every 5 minutes, and if we're
 switching redologs more often than every 30 minutes, we flag a 
@@ -206,14 +206,14 @@ a warning or alert is flagged.
 Configure reperror monitoring like you would any
 other facility in Karma.  Here's an example:
 
-I<reperror:X:Y:Z>
+C<reperror:X:Y:Z>
 
 Where X is the number of minutes between checks of the deferror queue.
 Y is the number of transactions which will flag a warning, and Z
 is the number of transactions which flags an alert.  Here's a
 recommended configuration:
 
-I<reperror:15:5:25>
+C<reperror:15:5:25>
 
 This tells karma to monitor the deferror queue every 15 minutes.  If
 there are more than 5 transactions in it, a warning is flag, and if
@@ -232,14 +232,14 @@ a warning or alert is flagged.
 Configure repqueue monitoring like you would any
 other facility in Karma.  Here's an example:
 
-I<repqueue:X:Y:Z>
+C<repqueue:X:Y:Z>
 
 Where X is the number of minutes between checks of the deftran queue.
 Y is the number of transactions which will flag a warning, and Z
 is the number of transactions which flags an alert.  Here's a
 recommended configuration:
 
-I<repqueue:15:100:150>
+C<repqueue:15:100:150>
 
 This tells karma to monitor the deftran queue every 15 minutes.  If
 there are more than 100 transactions in it, a warning is flag, and if
@@ -259,7 +259,7 @@ As with other facilities, we can monitor the hitratio for rollback
 segments to see if we have any problems.  Here's an example of
 how to configure karma to monitor your rollback segments:
 
-I<rollback:10:Y:Z>
+C<rollback:10:Y:Z>
 
 In this example we're monitoring every 10 minutes.  Y and Z flag a
 WARNING and ALERT respectively, although it hasn't been finalized
@@ -290,7 +290,7 @@ see
 
 Here's a configuration example:
 
-I<slowsql:15:100:200>
+C<slowsql:15:100:200>
 
 In this example we're monitoring every 15 minutes.  We're deciding
 that queries that do more than 100 data block I/Os flags a 
@@ -310,7 +310,7 @@ and fragmentation which you can monitor separately.
 
 Here's a configuration example:
 
-I<tablespace:15:85:95>
+C<tablespace:15:85:95>
 
 In this example we're monitoring every 15 minutes, and if we're 85% 
 full we flag a WARNING, and if we're 95% full we flag an alert.

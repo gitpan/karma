@@ -11,8 +11,6 @@ Details
     o configuration check tool (reads karma.conf file)
     o web interface
     o help page for adding new services
-    - using karmactl
-    - editing karma.conf
     o more services monitored
     - hitratios dictcache, rowcache
     - listener log monitor
@@ -39,3 +37,8 @@ Details
       in the config file like SERVER:http://www.something.com/karma onto
       which the rest can be appended
     o simplifying code by using views in "karma" schema
+      (tremendous code simplification, maintenance easier, adding
+       services easier, hides 7.x, 8.x issues)
+    o Duncan's redolog monitoring ideas
+    o reorganize code (OOP)
+    o mySQL, other db modules

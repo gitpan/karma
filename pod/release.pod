@@ -10,8 +10,12 @@ Please realise that this is a first release of karma, so there are
 sure to be bugs, and lots of issues on various platforms.  Please
 send me comments and/or bug reports.  Keep checking the 
 
-=for html <a href="http://www.panix.com/~shull/karma">karma homepage</a>
+=for html <a href="http://www.panix.com/~shull/karma">
 
-for details as there may be a user and developer email list before long.
+karma homepage (http://www.panix.com/~shull/karma)
+
+=for html </a>
+
+for updates.
 
 =cut

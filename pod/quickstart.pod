@@ -14,7 +14,7 @@ these directions.
 =over 4
 
 =item
-o Edit the doc_root/karma.conf file
+o Edit the karma.conf file
 
 =item
 o Make sure your database is running, and from the karma
@@ -24,19 +24,38 @@ C<$ bin/karmactl -s>
 
 =item
 o Open the file doc_root/index.html with a browser
-  (you don't   necessarily need a webserver at all).
+  (you don't necessarily need a webserver at all).
 
 =back
 
 If it isn't obvious already, you have to have Oracle, DBI,
-DBD-Oracle and Perl installed for everything to work.
+DBD-Oracle and Perl installed for everything to work.  You'll
+also need Mail::Send which comes with the MailTools module.
 
-=for html <A HREF=http://technet.oracle.com>Oracle</A>
+See also:
 
-=for html <A HREF="http://www.symbolstone.org/technology/perl/DBI/index.html">DBI, DBD-Oracle,</A>
+=for html <A HREF=http://technet.oracle.com>
 
-=for html <A HREF="http://www.perl.com">Perl</A>
+Technet (http://technet.oracle.com)
 
-=for html <A HREF="http://www.activestate.com">Perl for Win32</A>
+=for html </A>
+
+=for html <A HREF="http://www.symbolstone.org/technology/perl/DBI/index.html">
+
+DBI, DBD-Oracle (http://www.symbolstone.org/technology/perl/DBI/index.html)
+
+=for html </A>
+
+=for html <A HREF="http://www.perl.com">
+
+Perl (http://www.perl.com)
+
+=for html </A>
+
+=for html <A HREF="http://www.activestate.com">
+
+Perl for Win32 (http://www.activestate.com)
+
+=for html </A>
 
 =cut 

@@ -459,6 +459,8 @@ o fixed bug when no karma.conf file found, and karma uses DBI_USER,
 
 =back
 
+=head1 Version 0.9.4
+
 =head2 12.18.99
 
 =over 4
@@ -479,6 +481,30 @@ o a tbsp with an autoextend datafile is always green
 o fixed bug with min_wakeup time (refresh interval)
 
 =back
+
+=head1 Version 0.9.5
+
+=head2 1.3.99
+
+=over 4
+
+=item
+o handling karmagentd win32 conditions
+
+=item
+o karmagentd logging messages
+
+=item
+o karmagentd checking for valid dbh, sth, reconnecting when necessary
+
+=item
+o karmagentd handling term, hup signals
+
+=item
+o karmagentd handles reset alertlog (reread from beginning) 
+
+=item
+o slowsql defaults to OK status
 
 =cut
 

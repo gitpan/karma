@@ -26,16 +26,6 @@ o web interface
 =item
 o help page for adding new services
 
-=over 4
-
-=item
-- using karmactl
-
-=item
-- editing karma.conf
-
-=back
-
 =item
 o more services monitored
 
@@ -87,7 +77,6 @@ o look at adding graphing support http://www.munitions.com/~jra/cricket/
 o resetting services, once you've seen them, turn back to green
   (not sure if this fits into the non-CGI thinking so far...)
 
-
 =item
 o 7.x issues
 
@@ -124,6 +113,17 @@ o notify full includes url to info page this will require a new line
 
 =item
 o simplifying code by using views in "karma" schema
+  (tremendous code simplification, maintenance easier, adding
+   services easier, hides 7.x, 8.x issues)
+
+=item
+o Duncan's redolog monitoring ideas
+
+=item
+o reorganize code (OOP)
+
+=item
+o mySQL, other db modules
 
 =back
 

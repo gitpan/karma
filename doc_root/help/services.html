@@ -74,7 +74,7 @@ Beyond that, configure alertlog monitoring like you would any other
 facility in Karma. Here's an example:
 
 <P>
-<EM>alertlog:X:Y:Z</EM>
+<CODE>alertlog:X:Y:Z</CODE>
 
 
 
@@ -86,7 +86,7 @@ consider the error a WARNING level situation. Here's a recommended
 configuration:
 
 <P>
-<EM>alertlog:15:86400:60</EM>
+<CODE>alertlog:15:86400:60</CODE>
 
 
 
@@ -119,7 +119,7 @@ want to know earlier when they require adjustments or rebuilding. Here's an
 example:
 
 <P>
-<EM>extents:15:2:1</EM>
+<CODE>extents:15:2:1</CODE>
 
 
 
@@ -159,7 +159,7 @@ At any rate, karma can be setup to be strict or not so strict. Configure
 karma for fragmentation monitoring as follows:
 
 <P>
-<EM>fragmentation:X:Y:Z</EM>
+<CODE>fragmentation:X:Y:Z</CODE>
 
 
 
@@ -181,7 +181,7 @@ We monitor data block buffer hitratio, dictionary cache hitratio and so on.
 Configure hitratio monitoring as follows:
 
 <P>
-<EM>hitratios:5:95:70</EM>
+<CODE>hitratios:5:95:70</CODE>
 
 
 
@@ -200,7 +200,7 @@ No help yet.
 Here's how you would configure it:
 
 <P>
-<EM>latch:5:X:Y</EM>
+<CODE>latch:5:X:Y</CODE>
 
 
 
@@ -225,7 +225,7 @@ be easy or strict with it's enforcement and alert levels. Configure it as
 follows:
 
 <P>
-<EM>mts:10:50:75</EM>
+<CODE>mts:10:50:75</CODE>
 
 
 
@@ -250,7 +250,7 @@ Beyond that, configure os monitoring like you would any other facility in
 Karma. Here's an example:
 
 <P>
-<EM>os:1:5:10</EM>
+<CODE>os:1:5:10</CODE>
 
 
 
@@ -277,7 +277,7 @@ Below is an example of how to configure monitoring redo-log switching in
 karma:
 
 <P>
-<EM>redolog:5:30:15</EM>
+<CODE>redolog:5:30:15</CODE>
 
 
 
@@ -303,7 +303,7 @@ Configure reperror monitoring like you would any other facility in Karma.
 Here's an example:
 
 <P>
-<EM>reperror:X:Y:Z</EM>
+<CODE>reperror:X:Y:Z</CODE>
 
 
 
@@ -313,7 +313,7 @@ the number of transactions which will flag a warning, and Z is the number
 of transactions which flags an alert. Here's a recommended configuration:
 
 <P>
-<EM>reperror:15:5:25</EM>
+<CODE>reperror:15:5:25</CODE>
 
 
 
@@ -338,7 +338,7 @@ Configure repqueue monitoring like you would any other facility in Karma.
 Here's an example:
 
 <P>
-<EM>repqueue:X:Y:Z</EM>
+<CODE>repqueue:X:Y:Z</CODE>
 
 
 
@@ -348,7 +348,7 @@ the number of transactions which will flag a warning, and Z is the number
 of transactions which flags an alert. Here's a recommended configuration:
 
 <P>
-<EM>repqueue:15:100:150</EM>
+<CODE>repqueue:15:100:150</CODE>
 
 
 
@@ -374,7 +374,7 @@ to see if we have any problems. Here's an example of how to configure karma
 to monitor your rollback segments:
 
 <P>
-<EM>rollback:10:Y:Z</EM>
+<CODE>rollback:10:Y:Z</CODE>
 
 
 
@@ -411,7 +411,7 @@ tuning see
 Here's a configuration example:
 
 <P>
-<EM>slowsql:15:100:200</EM>
+<CODE>slowsql:15:100:200</CODE>
 
 
 
@@ -438,7 +438,7 @@ which you can monitor separately.
 Here's a configuration example:
 
 <P>
-<EM>tablespace:15:85:95</EM>
+<CODE>tablespace:15:85:95</CODE>
 
 
 

@@ -29,19 +29,29 @@ Installing a read-only user in your database
     You can now use this user and the password you specified when
     configuring a karma.conf file.
 
-Editing the karma.conf file
+Basic Editing of the karma.conf file
     The karma.conf file is the core configuration file for karma.
     Eventually it will be updatable via a web front-end, but for now
     one must edit the file.
 
-    The format of most lines in this file is:
+    The 'karma' line is a directive to karma of a database it needs
+    to monitor.
 
-    *SERVICE:X:Y:Z*
+    `karma:*:VENUS:karma:amrak' `karma:*:MARS:karma:amrak'
+
+    In this case karma will monitor the VENUS and MARS databases.
+    The last two parameters are the username and password to login
+    with. 'MARS' and 'VENUS' must be defined in the tnsnames.ora
+    file otherwise an error will be returned.
+
+    The format of most other lines in this file are:
+
+    `SERVICE:X:Y:Z'
 
     The SERVICE can be one of these:
 
     redologs rollback tablespaces slowsql alertlog hitratios
-    fragmentation extents latch mts
+    fragmentation extents latch mts repqueue reperror
 
     X - how often (in minutes) to monitor this info Y - warning
     threshold Z - alert threshold
@@ -49,164 +59,62 @@ Editing the karma.conf file
     A service is not monitored if it's time column is 0, or it is
     commented out with the # character, or if it is not in the file
     at all. For repeated entries, the last one listed will be used.
-    NOTIFICATION
 
-    *prefname:level:interval:short|long:service1,service2...*
+    A very simple configuration would look like this:
 
-    Prefname specifies a perference group, level is one of
-    (notify_alert notify_warn),interval is how often to send
-    notification, short or long is the size of the message. Use
-    short for a text pager. After that is just a list of services.
-    Note also that you'll need a "notify_email" line to specify
-    email addresses, otherwise the message will have nowhere to go.
-    It looks like this:
+    `redologs' `rollback' `tablespace' `slowsql' `hitratios'
+    `fragmentation' `extents' `latch'
 
-    *prefname:notify_email:shull,root*
+    In this case, the factory defaults for X, Y, and Z will be used.
+    Conversely, set your own values:
 
-    Again, you can leave the preference group out completely, and
-    just specify the keyword "notify_email" followed by a list of
-    email addresses.
+    `tablespace:15:85:95'
 
-    The "karma" line in this file follows a special convention. It
-    looks like this:
+    Which directs karma to check up on tablespace quotas every 15
+    minutes, flagging a warning if they are 85% full, or an alert if
+    they are 95% full.
 
-    *karma:prefname:name:user:pass:X*
+Editing the karma.conf using Preference Groups
+    By default karma uses a default preference group. That's what
+    the '*' is for in the second field. It can also be blank, or the
+    word default:
 
-    where "name" is listed as a service in the tnsnames.ora file.
-    "user" is the user to login to the database as, and "pass" is
-    the password to use. X is how often the karma.pl script should
-    wake up to check your database. You should have *many* of these
-    lines, one for each database you wish tomonitor. Conversely you
-    can specify:
+    `karma:*:MARS:karma:amrak' `karma::MARS:karma:amrak'
+    `karma:default:MARS:karma:amrak'
 
-    *karma:prefname:ALL:user:pass:X*
+    All three achieve the same result. However, one can break the
+    preference settings up into groups. These are given case
+    sensitive names in this karma line, and karma then looks for
+    config lines later in the file, PREPENDED with this name.
 
-    meaning every entry in the tnsnames.ora file. I'm not sure if
-    this will be much use though, as they'll all have to have the
-    same username and password. If you have a service named "ALL",
-    sorry. :-)
+    `karma:New York:MARS:karma:amrak' `New York:tablespace:10:80:90'
+    `New York:slowsql' `New York:hitratios:2:85:95'
 
-    In addition to the "karma" line, the "refresh" directive is
-    special as well. It looks like this:
+    Notice that the exact spelling is relevant here. Case is
+    checked, as well as spaces. In fact, any characters between the
+    colons matter.
 
-    *refresh:X*
+    For more information on configuring services, see the services
+    documentation
 
-    X is how often the generated html page should refresh. It's
-    probably a good idea for this value to be less thanthe refresh
-    karma does for that database.
+    .
 
-    PREFERENCE GROUPS
+Email Notification
+    Email notification is an important part of any monitoring app,
+    so I've tried to get this functionality working well in 1.0. At
+    it's most basic form, you add a line in your config file like
+    this:
 
-    These allow you to have different sets of preferences and apply
-    them to different databases, or groups of databases.
+    `notify_email:full:shull,root,oracle@somewhere.com,nobody@xyz.co
+    m'
 
-    Specify a preference group in various lines like this:
+    The first field is obviously the directive. The second can be
+    'full' or 'short'. The 'short' format email is a very limited
+    message suitable for text pagers which often have an 80
+    character limitation. The third field is a comma delimited list
+    of email addresses.
 
-    *karma:PREFNAME:name:user:pass:X*
-
-    *PREFNAME:notify_email:shull,root*
-
-    *notify_alert:10:full:fragmentation,a,b,c*
-
-    **:notify_warning:15:full:hitratios,a,b,c*
-
-    **:rollback:1:99:97* *default:rollback:1:99:97*
-
-    Notice that on any line you can specify a preference name you
-    can leave blank, or use a "*", or specify default. In fact if
-    you don't wish to use preference groups, you do not have to
-    specify them anywhere but in the karma line, which you would
-    need only leave that field blank, or use a "*".
-
-    Here's an example karma.conf file. Comments are embedded.
-
-    --
-
-    # # specifies databases to monitor # # First field is always
-    "karma" meaning, this is a database # definition line. The
-    second field is a name from your # tnsnames.ora file. The third
-    and fourth fields are your # username and password respectively.
-    Also, you'll notice # that the first line specified below is not
-    the sys user. # If you specify another user besides sys or
-    system, the user # must have "SELECT ANY TABLE" privilege. # #
-    NOTE: We'll need a more secure way of specifying usernames # and
-    passwords for the future. # karma:*:ONAN:sys:manager #
-    karma:*:TREVOR:sys:manager
-
-    # # refresh # # first number is in minutes, how often karma
-    refreshes # (There should probably be some checking on this so
-    if you # have a quicker refresh for some other service, karma
-    will # wake up to refresh those...) # refresh:5:75
-
-    # # monitor redolog switching, threshold values in minutes #
-    redologs:1:30:15
-
-    # # rollback segment contention # rollback:1:0:0
-
-    # # tablespace quotas # tablespace:1:85:95
-
-    # # slow running sql, that is queries that perform a lot of disk
-    reads # the thresholds here amount to number of diskreads. The
-    query # checksfor anything in v$sqlarea above the specified
-    threshold # of diskreads (it does not consider executions
-    assuming that # (a) slow queries often don't get reexecuted over
-    and over - # debatable, and (b) it speeds up this query
-    noticeably # slowsql:1:100:200
-
-    # # ORA errors in the alert log # These numbers represent the
-    number of minutes # we're concerned about. Alert if we've had
-    ORA- errors in # the alert log in the last 60 minutes, warn if
-    we've had # any within 24 hours # alertlog:1:60:86400
-
-    # # various system hit ratios # (expressed as percentages...) #
-    below the given value is a warn or alert # hitratios:1:95:70
-
-    # # tablespace fragmentation # fragmentation:1:0:0
-
-    # # objects nearing their maxextents or those which will not be
-    able # to allocate their next extent
-
-    # # below we warn when we're at our second to last extent # (1
-    from maxextents) and alert when we're AT our maxextents # (0
-    from maxextents) # extents:1:2:1
-
-    # # latch contention # latch:1:99:97
-
-    # # monitors shared server and dispatcher process contention #
-    more than the give value % busy is a warn or alert # mts:1:50:75
-
-    # # monitors OS statistics (if the table exists) # # The code in
-    karma will check for the existance of the # KARMA_OS_STATS table
-    and display NO_STATUS if it doesn't exist, # however, it's
-    cleaner to just comment out the service here if # you haven't
-    created the appropriate tables. # os:1:5:10
-
-    # # who to email # one line for each address, or comma separated
-    list # sean_new:notify_email:shull,root
-    *:notify_email:shull,roby,oracle
-
-    # # how often to email out each type (warning, alert), size of #
-    message to send (short for text pagers), and then a list of #
-    services that we want notification on. If it's not in the #
-    list, warning/alert status will not trigger an email #
-    notification # notify_alert:10:full:fragmentation,a,b,c
-    notify_warning:15:full:hitratios,a,b,c
-
-    # # similar to the above, except each preceded by a preference #
-    group # sean_new:notify_alert:5:full:up,hitratios
-    sean_new:notify_warning:30:full:hitratios,a,b,c
-
-    sean_new:refresh:5:75 sean_new:redolog:1:30:15
-    sean_new:rollback:1:0:0 sean_new:tablespace:1:85:95
-    sean_new:slowsql:1:100:200 sean_new:alertlog:1:60:86400
-    sean_new:hitratios:1:95:70 sean_new:fragmentation:1:0:0
-    sean_new:extents:1:2:1 sean_new:latch:1:0:0 sean_new:mts:1:50:75
-    sean_new:os:1:5:10
-
-    # # look and feel config... # # whether or not to use blinking
-    ICONS... # # If you want blinking for either warning or alerts #
-    you can specify ( true || yes || 1 ) and if you # don't you can
-    specify ( false || no || 0 ) # warn_blink:true alert_blink:true
+    Check the various *.conf files in the main directory.
 
 Alertlog and OS monitoring
     Karma has the ability to monitor the alertlog file and some OS
@@ -219,7 +127,10 @@ Alertlog and OS monitoring
     stats, you must create the KARMA_OS_STATS table. For monitoring
     either, you must startup the karmagentd daemon.
 
-    Login as the karma user created above
+    Install the tables in your karma schema first. Login as the
+    karma user created above
+
+    (see user creation section)
 
     and do the following:
 
@@ -265,8 +176,10 @@ Alertlog and OS monitoring
 Using the karmactl utility
     The karmactl utility is a new addition to karma, and enables you
     to more easily manage a running karma daemon. You can use it to
-    stop or start the daemon, get status on a running daemon, and
-    reread the config file. To get help do the following:
+    stop or start the daemon, get status on a running daemon, reread
+    the config file or force a refresh of all services.
+
+    To get help do `$ perldoc karmactl' or the following:
 
     `$ bin/karmactl -h'
 
@@ -279,7 +192,7 @@ Using the karmactl utility
     starting karmad)' `-k specify karma doc_root' `-d delete
     dynamically created karma files (karma.html, info/*.html)'
 
-    `./karmactl [-h'|`-v'|-w|-s|-p|-t|-r|-d] [-l file] [-c file] [-k
+    `karmactl [-h'|`-v'|-w|-s|-p|-t|-r|-d] [-l file] [-c file] [-k
     dir]
 
     Get the status of a running karma daemon as follows:

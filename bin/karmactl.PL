@@ -98,8 +98,12 @@ $main::opt_c = undef;
 $main::opt_l = undef;
 $main::opt_d = undef;
 $main::opt_f = undef;
+$main::opt_h = undef;
 getopts('hspfrtwvi:k:l:c:d');
 
+if (defined $main::opt_h) {
+    printHelp ();
+}
 if (defined ($main::opt_w)) {
     printWarranty ();
 }
@@ -161,9 +165,12 @@ sub printHelp () {
 	" -l specify logfile for karmad (ignored if not starting karmad)\n",
 	" -c specify karma config file (ignored if not starting karmad)\n",
 	" -k specify karma doc_root\n",
-	" -d delete dynamically created karma files (karma.html, info/*.html)",
+	" -d delete dynamically created karma files ",
+	          "(karma.html, info/*.html)\n",
 	"\n",
-	"$0 [-h|-v|-w|-s|-p|-t|-r|-d] [-l file] [-c file] [-k dir]\n";
+	"$0 [-h|-v|-w|-s|-p|-t|-r|-d] [-l file] [-c file] [-k dir]\n",
+	"\n";
+    
     exit;
 }
 
@@ -174,7 +181,7 @@ sub printHelp () {
 #-----------------------------------------------------------------------
 sub startKarma () {
 
-    print ("Starting karma daemon");
+    print ("Starting karmad daemon");
  
     my $COMMAND = "$main::KARMA";
     if ($main::opt_l) {
@@ -393,23 +400,44 @@ of a running daemon, or reread the config file.
 
 Invoke the karmactl utility from the command line as follows:
 
-C<$ ./karmactl -s>
+C<$ karmactl -s>
 
 use the C<-t> option to get the status of a running daemon, or
 the C<-r> option to reread the config file:
 
-C<$ ./karmactl -r>
+C<$ karmactl -r>
 
 When you want to stop the karmad daemon, you can do it like this:
 
-C<$ ./karmactl -p>
+C<$ karmactl -p>
 
 Note that these commands are dependant on the process id of the
 current running process.  If for some reason that pid wasn't 
 written to the .karma.pid file, you may specify it manually
 like this:
 
-C<$ ./karmactl -p -i 2545>
+C<$ karmactl -p -i 2545>
+
+Finally you can always use C<-h> to get help:
+
+C<$ karmactl -h>
+
+ C<-h print help and exit>
+ C<-v print version and exit>
+ C<-f force a refresh of all service statuses>
+ C<-w print warranty and exit>
+ C<-s start karmad daemon>
+ C<-p stop karmad daemon>
+ C<-t print status of running karmad daemon>
+ C<-r reload karam.conf config file>
+ C<-i specify process id (if lock file is missing)>
+ C<-l specify logfile for karmad (ignored if not starting karmad)>
+ C<-c specify karma config file (ignored if not starting karmad)>
+ C<-k specify karma doc_root>
+ C<-d delete dynamically created karma files (karma.html, info/*.html)>
+
+C<karmactl [-h|-v|-w|-s|-p|-t|-r|-d] [-l file] [-c file] [-k dir]>
+
 
 =cut
 

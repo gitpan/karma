@@ -27,25 +27,34 @@ o Sean Hull      shull@pobox.com
 o Andy Duncan      andy_j_duncan@yahoo.com
 
 =item
+o Charlie Mengler  charliem@mwh.com
+
+=item
+o Charles Wolfe    cwolfe@ix.netcom.com 
+
+=item
 o Dennis Heltzel   DHeltzel@IKON.com
-
-=item
-o D.C.Lawie        duncanl@demon.net
-
-=item
-o Thomas Lowery    tlowery@dsioj.dla.mil
-
-=item
-o Peter Norton     spacey@pobox.com
 
 =item
 o Dennis Taylor    dennis@funkplanet.com
 
 =item
-o Mike Schwern     schwern@pobox.com
+o D.C.Lawie        duncanl@demon.net
 
 =item
 o Eric Whiting     ewhiting@amis.com
+
+=item
+o Jim Walski       jwalski@deltanet.com
+
+=item
+o Mike Schwern     schwern@pobox.com
+
+=item
+o Peter Norton     spacey@pobox.com
+
+=item
+o Thomas Lowery    tlowery@dsioj.dla.mil
 
 =back 
 

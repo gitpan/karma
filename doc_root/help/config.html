@@ -13,7 +13,9 @@
 	<LI><A HREF="#NAME">NAME</A>
 	<LI><A HREF="#DESCRIPTION">DESCRIPTION</A>
 	<LI><A HREF="#Installing_a_read_only_user_in_y">Installing a read-only user in your database</A>
-	<LI><A HREF="#Editing_the_karma_conf_file">Editing the karma.conf file</A>
+	<LI><A HREF="#Basic_Editing_of_the_karma_conf_">Basic Editing of the karma.conf file</A>
+	<LI><A HREF="#Editing_the_karma_conf_using_Pre">Editing the karma.conf using Preference Groups</A>
+	<LI><A HREF="#Email_Notification">Email Notification</A>
 	<LI><A HREF="#Alertlog_and_OS_monitoring">Alertlog and OS monitoring</A>
 	<LI><A HREF="#Using_the_karmactl_utility">Using the karmactl utility</A>
 </UL>
@@ -73,16 +75,32 @@ karma.conf file.
 
 <P>
 <HR>
-<H1><A NAME="Editing_the_karma_conf_file">Editing the karma.conf file</A></H1>
+<H1><A NAME="Basic_Editing_of_the_karma_conf_">Basic Editing of the karma.conf file</A></H1>
 <P>
 The karma.conf file is the core configuration file for karma. Eventually it
 will be updatable via a web front-end, but for now one must edit the file.
 
 <P>
-The format of most lines in this file is:
+The 'karma' line is a directive to karma of a database it needs to monitor.
 
 <P>
-<EM>SERVICE:X:Y:Z</EM>
+<CODE>karma:*:VENUS:karma:amrak</CODE>
+
+<CODE>karma:*:MARS:karma:amrak</CODE>
+
+
+
+<P>
+In this case karma will monitor the VENUS and MARS databases. The last two
+parameters are the username and password to login with. 'MARS' and 'VENUS'
+must be defined in the tnsnames.ora file otherwise an error will be
+returned.
+
+<P>
+The format of most other lines in this file are:
+
+<P>
+<CODE>SERVICE:X:Y:Z</CODE>
 
 
 
@@ -91,7 +109,7 @@ The SERVICE can be one of these:
 
 <P>
 redologs rollback tablespaces slowsql alertlog hitratios fragmentation
-extents latch mts
+extents latch mts repqueue reperror
 
 <P>
 X - how often (in minutes) to monitor this info Y - warning threshold Z -
@@ -100,218 +118,110 @@ alert threshold
 <P>
 A service is not monitored if it's time column is 0, or it is commented out
 with the # character, or if it is not in the file at all. For repeated
-entries, the last one listed will be used. NOTIFICATION
+entries, the last one listed will be used.
 
 <P>
-<EM>prefname:level:interval:short|long:service1,service2...</EM>
-
-
+A very simple configuration would look like this:
 
 <P>
-Prefname specifies a perference group, level is one of (notify_alert
-notify_warn),interval is how often to send notification, short or long is
-the size of the message. Use short for a text pager. After that is just a
-list of services. Note also that you'll need a ``notify_email'' line to
-specify email addresses, otherwise the message will have nowhere to go. It
-looks like this:
+<CODE>redologs</CODE>
 
-<P>
-<EM>prefname:notify_email:shull,root</EM>
+<CODE>rollback</CODE>
 
+<CODE>tablespace</CODE>
 
+<CODE>slowsql</CODE>
 
-<P>
-Again, you can leave the preference group out completely, and just specify
-the keyword ``notify_email'' followed by a list of email addresses.
+<CODE>hitratios</CODE>
 
-<P>
-The ``karma'' line in this file follows a special convention. It looks like
-this:
+<CODE>fragmentation</CODE>
 
-<P>
-<EM>karma:prefname:name:user:pass:X</EM>
+<CODE>extents</CODE>
+
+<CODE>latch</CODE>
 
 
 
 <P>
-where ``name'' is listed as a service in the tnsnames.ora file. ``user'' is
-the user to login to the database as, and ``pass'' is the password to use.
-X is how often the karma.pl script should wake up to check your database.
-You should have *many* of these lines, one for each database you wish
-tomonitor. Conversely you can specify:
+In this case, the factory defaults for X, Y, and Z will be used.
+Conversely, set your own values:
 
 <P>
-<EM>karma:prefname:ALL:user:pass:X</EM>
+<CODE>tablespace:15:85:95</CODE>
 
 
 
 <P>
-meaning every entry in the tnsnames.ora file. I'm not sure if this will be
-much use though, as they'll all have to have the same username and
-password. If you have a service named ``ALL'', sorry. :-)
+Which directs karma to check up on tablespace quotas every 15 minutes,
+flagging a warning if they are 85% full, or an alert if they are 95% full.
 
 <P>
-In addition to the ``karma'' line, the ``refresh'' directive is special as
-well. It looks like this:
+<HR>
+<H1><A NAME="Editing_the_karma_conf_using_Pre">Editing the karma.conf using Preference Groups</A></H1>
+<P>
+By default karma uses a default preference group. That's what the '*' is
+for in the second field. It can also be blank, or the word default:
 
 <P>
-<EM>refresh:X</EM>
+<CODE>karma:*:MARS:karma:amrak</CODE>
 
+<CODE>karma::MARS:karma:amrak</CODE>
 
-
-<P>
-X is how often the generated html page should refresh. It's probably a good
-idea for this value to be less thanthe refresh karma does for that
-database.
-
-<P>
-PREFERENCE GROUPS
-
-<P>
-These allow you to have different sets of preferences and apply them to
-different databases, or groups of databases.
-
-<P>
-Specify a preference group in various lines like this:
-
-<P>
-<EM>karma:PREFNAME:name:user:pass:X</EM>
+<CODE>karma:default:MARS:karma:amrak</CODE>
 
 
 
 <P>
-<EM>PREFNAME:notify_email:shull,root</EM>
+All three achieve the same result. However, one can break the preference
+settings up into groups. These are given case sensitive names in this karma
+line, and karma then looks for config lines later in the file, PREPENDED
+with this name.
+
+<P>
+<CODE>karma:New York:MARS:karma:amrak</CODE>
+
+<CODE>New York:tablespace:10:80:90</CODE>
+
+<CODE>New York:slowsql</CODE>
+
+<CODE>New York:hitratios:2:85:95</CODE>
 
 
 
 <P>
-<EM>notify_alert:10:full:fragmentation,a,b,c</EM>
+Notice that the exact spelling is relevant here. Case is checked, as well
+as spaces. In fact, any characters between the colons matter.
+
+<P>
+For more information on configuring services, see the services
+documentation
+
+<A HREF=services.html>here</A>
+
+<P>
+.
+
+<P>
+<HR>
+<H1><A NAME="Email_Notification">Email Notification</A></H1>
+<P>
+Email notification is an important part of any monitoring app, so I've
+tried to get this functionality working well in 1.0. At it's most basic
+form, you add a line in your config file like this:
+
+<P>
+<CODE>notify_email:full:shull,root,oracle@somewhere.com,nobody@xyz.com</CODE>
 
 
 
 <P>
-<EM>*:notify_warning:15:full:hitratios,a,b,c</EM>
-
-
-
-<P>
-<EM>*:rollback:1:99:97</EM>
-
-<EM>default:rollback:1:99:97</EM>
-
-
+The first field is obviously the directive. The second can be 'full' or
+'short'. The 'short' format email is a very limited message suitable for
+text pagers which often have an 80 character limitation. The third field is
+a comma delimited list of email addresses.
 
 <P>
-Notice that on any line you can specify a preference name you can leave
-blank, or use a ``*'', or specify default. In fact if you don't wish to use
-preference groups, you do not have to specify them anywhere but in the
-karma line, which you would need only leave that field blank, or use a
-``*''.
-
-<P>
-Here's an example karma.conf file. Comments are embedded.
-
-<P>
---
-
-<P>
-# # specifies databases to monitor # # First field is always ``karma''
-meaning, this is a database # definition line. The second field is a name
-from your # tnsnames.ora file. The third and fourth fields are your #
-username and password respectively. Also, you'll notice # that the first
-line specified below is not the sys user. # If you specify another user
-besides sys or system, the user # must have ``SELECT ANY TABLE'' privilege.
-# # NOTE: We'll need a more secure way of specifying usernames # and
-passwords for the future. # karma:*:ONAN:sys:manager #
-karma:*:TREVOR:sys:manager
-
-<P>
-# # refresh # # first number is in minutes, how often karma refreshes #
-(There should probably be some checking on this so if you # have a quicker
-refresh for some other service, karma will # wake up to refresh those...) #
-refresh:5:75
-
-<P>
-# # monitor redolog switching, threshold values in minutes #
-redologs:1:30:15
-
-<P>
-# # rollback segment contention # rollback:1:0:0
-
-<P>
-# # tablespace quotas # tablespace:1:85:95
-
-<P>
-# # slow running sql, that is queries that perform a lot of disk reads #
-the thresholds here amount to number of diskreads. The query # checksfor
-anything in v$sqlarea above the specified threshold # of diskreads (it does
-not consider executions assuming that # (a) slow queries often don't get
-reexecuted over and over - # debatable, and (b) it speeds up this query
-noticeably # slowsql:1:100:200
-
-<P>
-# # ORA errors in the alert log # These numbers represent the number of
-minutes # we're concerned about. Alert if we've had ORA- errors in # the
-alert log in the last 60 minutes, warn if we've had # any within 24 hours #
-alertlog:1:60:86400
-
-<P>
-# # various system hit ratios # (expressed as percentages...) # below the
-given value is a warn or alert # hitratios:1:95:70
-
-<P>
-# # tablespace fragmentation # fragmentation:1:0:0
-
-<P>
-# # objects nearing their maxextents or those which will not be able # to
-allocate their next extent
-
-<P>
-# # below we warn when we're at our second to last extent # (1 from
-maxextents) and alert when we're AT our maxextents # (0 from maxextents) #
-extents:1:2:1
-
-<P>
-# # latch contention # latch:1:99:97
-
-<P>
-# # monitors shared server and dispatcher process contention # more than
-the give value % busy is a warn or alert # mts:1:50:75
-
-<P>
-# # monitors OS statistics (if the table exists) # # The code in karma will
-check for the existance of the # KARMA_OS_STATS table and display NO_STATUS
-if it doesn't exist, # however, it's cleaner to just comment out the
-service here if # you haven't created the appropriate tables. # os:1:5:10
-
-<P>
-# # who to email # one line for each address, or comma separated list #
-sean_new:notify_email:shull,root *:notify_email:shull,roby,oracle
-
-<P>
-# # how often to email out each type (warning, alert), size of # message to
-send (short for text pagers), and then a list of # services that we want
-notification on. If it's not in the # list, warning/alert status will not
-trigger an email # notification # notify_alert:10:full:fragmentation,a,b,c
-notify_warning:15:full:hitratios,a,b,c
-
-<P>
-# # similar to the above, except each preceded by a preference # group #
-sean_new:notify_alert:5:full:up,hitratios
-sean_new:notify_warning:30:full:hitratios,a,b,c
-
-<P>
-sean_new:refresh:5:75 sean_new:redolog:1:30:15 sean_new:rollback:1:0:0
-sean_new:tablespace:1:85:95 sean_new:slowsql:1:100:200
-sean_new:alertlog:1:60:86400 sean_new:hitratios:1:95:70
-sean_new:fragmentation:1:0:0 sean_new:extents:1:2:1 sean_new:latch:1:0:0
-sean_new:mts:1:50:75 sean_new:os:1:5:10
-
-<P>
-# # look and feel config... # # whether or not to use blinking ICONS... # #
-If you want blinking for either warning or alerts # you can specify ( true
-|| yes || 1 ) and if you # don't you can specify ( false || no || 0 ) #
-warn_blink:true alert_blink:true
+Check the various *.conf files in the main directory.
 
 <P>
 <HR>
@@ -329,9 +239,15 @@ must create the KARMA_OS_STATS table. For monitoring either, you must
 startup the karmagentd daemon.
 
 <P>
-Login as the karma user created above
+Install the tables in your karma schema first. Login as the karma user
+created above 
 
-<a href=config.html#user">click here</a>
+<a href=config.html#user">
+
+<P>
+(see user creation section)
+
+</a>
 
 <P>
 and do the following:
@@ -415,8 +331,11 @@ For more help with the karmagentd daemon, use the <CODE>-h</CODE> option:
 <P>
 The karmactl utility is a new addition to karma, and enables you to more
 easily manage a running karma daemon. You can use it to stop or start the
-daemon, get status on a running daemon, and reread the config file. To get
-help do the following:
+daemon, get status on a running daemon, reread the config file or force a
+refresh of all services.  
+
+<P>
+To get help do <CODE>$ perldoc karmactl</CODE> or the following:
 
 <P>
 <CODE>$ bin/karmactl &lt;CODE&gt;-h&lt;/CODE&gt;</CODE>
@@ -451,7 +370,7 @@ help do the following:
 
 
 <P>
-<CODE>./karmactl [&lt;CODE&gt;-h&lt;/CODE&gt;|&lt;CODE&gt;-v&lt;/CODE&gt;|-w|-s|-p|-t|-r|-d] [-l file] [-c file] [-k dir]</CODE>
+<CODE>karmactl [&lt;CODE&gt;-h&lt;/CODE&gt;|&lt;CODE&gt;-v&lt;/CODE&gt;|-w|-s|-p|-t|-r|-d] [-l file] [-c file] [-k dir]</CODE>
 
 
 

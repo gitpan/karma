@@ -105,6 +105,7 @@ if ($main::opt_h) {
     printHelp ();
 }
 
+$main::DEBUG_LEVEL = undef;
 if ($main::opt_d) {
     $main::DEBUG_LEVEL = $main::opt_d;
 }
@@ -935,7 +936,8 @@ if ((defined ($main::opt_c)) &&
 # perl seems to pass the file handle ok though, because the logfile
 # is opened before forking, and is written to after...
 #
-if ($main::WINDOWS == 0) {
+if (($main::WINDOWS == 0) && 
+    (not (defined $main::DEBUG_LEVEL))){
     daemonize ();
 }
 
@@ -1811,7 +1813,7 @@ sub getTablespaceStatus ($$$) {
 sub getSlowsqlStatus ($$$) {
     my ($slowsql_threshold_warn, $slowsql_threshold_alert, $inTNS) = @_;
 
-    my $slowsqlStatus = $main::cNO_STATUS;
+    my $slowsqlStatus = $main::cOK_STATUS;
     my $slowsqlTableRef = [()];
     my $disk_reads = 0;
     my $executions = 0;
@@ -3432,7 +3434,7 @@ sub showInfoPage ($$$$) {
     debugMessage ("showInfoPage:$inTNS, IF:$main::INFO_FILE_NAME\n", 2);
     $main::info_file = new IO::File ">$main::INFO_FILE_NAME"
 #	or die ("Can't open $main::INFO_FILE_NAME - $!\n");
-	or logMessage_exit ("Can't open $main::INFO_FILE_NAME - $!\n");
+	or logMessageExit ("Can't open $main::INFO_FILE_NAME - $!\n");
 
     debugMessage ("showInfoPage:$inTNS, IF opened ok.\n", 2);
 
@@ -4940,15 +4942,16 @@ Karma - karmad
 
 =head1 DESCRIPTION
 
-karmad is the main karma daemon.  It wakesup periodically to
+karmad is the main karma daemon.  It wakes up periodically to
 check your database for various statistics, generating a new
-karma.html each time.
+karma.html and various info/*.html files each time.
 
 =head1 SYNOPSIS
 
-Generally you won't run karma by invoking karmad directly.  One
-exception to this rule is if you want to turn on debugging with
-C<-d>.  In most other cases, use karmactl to invoke this daemon.
+Generally you won't run karma by invoking karmad directly, but
+will use the karmactl control utility instead.  One exception
+to this rule is if you want to turn on debugging with C<-d>.
+In most other cases, use karmactl to invoke this daemon.
 
 =head1 NOTES
 
@@ -4957,7 +4960,8 @@ and debugging as follows:
 
 C<$ ./karmad -d 2 -c test.conf -l test.log>
 
-Check test.log for details.
+Check test.log for details.  Use the C<-h> option for additional
+help on options.
 
 =cut
 

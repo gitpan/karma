@@ -12,7 +12,6 @@ $Config{'startperl'} -w
 !GROK!THIS!
 
 print OUT <<'!NO!SUBS!';
-
 #------------------------------------------------------------------
 # 
 # Karma Copyright (C) 1999  Sean Hull <shull@pobox.com>
@@ -49,6 +48,8 @@ print OUT <<'!NO!SUBS!';
 # want to gather these stats on (for now).  Sorry.
 #
 # Needs to run as the Oracle user...
+#
+#
 #-----------------------------------------------------------------
 
 
@@ -63,6 +64,7 @@ sub readPosition ($);
 sub writePosition ($$);
 sub debugPrint ($$);
 sub printHelp ();
+sub dbConnect ();
 
 use Getopt::Std;
 use karma;
@@ -73,7 +75,7 @@ BEGIN {
 	print 
 	    "You must have DBI installed to use karma.\n",
 	    "Please install it first, and try again.\n";
-	exit;
+	exit 1;
     }
 }
 
@@ -82,7 +84,7 @@ BEGIN {
 	print
 	    "You must have DBD::Oracle installed to use karma.\n",
 	    "Please install it first, and try again.\n";
-	exit;
+	exit 1;
     }
 }
 
@@ -93,6 +95,7 @@ require 5.004;
 #
 # needs windows support
 #
+$main::CMD_UPTIME = undef;
 if ($main::WINDOWS == 0) {
     $main::CMD_UPTIME = "/usr/bin/uptime";
 }
@@ -117,35 +120,36 @@ $main::opt_v = undef;
 $main::opt_l = undef;
 getopts('ht:u:f:a:rp:j:s:b:h:d:k:vwl:');
 
-if ($main::opt_v) {
+if (defined $main::opt_v) {
     printVersion ();
 }
-if ($main::opt_w) {
+if (defined $main::opt_w) {
     printWarranty ();
 }
-if ($main::opt_h) {
+if (defined $main::opt_h) {
     printHelp ();
 }
 
-if ($main::opt_d) {
+$main::DEBUG_LEVEL = undef;
+if (defined $main::opt_d) {
     $main::DEBUG_LEVEL = $main::opt_d;
 }
 
-if ($main::opt_s) {
+if (defined $main::opt_s) {
     $ENV{ORACLE_SID} = $main::opt_s;
 }
-if ($main::opt_b) {
+if (defined $main::opt_b) {
     $ENV{ORACLE_BASE} = $main::opt_b;
 }
-if ($main::opt_h) {
+if (defined $main::opt_h) {
     $ENV{ORACLE_HOME} = $main::opt_h;
 }
-if ($main::opt_r) {
-    reset_alertlog ();
+if (defined $main::opt_r) {
+    resetAlertlog ();
 }
 
 $main::TNS = "";
-if ($main::opt_t) {
+if (defined $main::opt_t) {
     $main::TNS = $main::opt_t;
 } elsif (defined ($ENV{DBI_DSN})) {
     $main::TNS = $ENV{DBI_DSN};
@@ -154,11 +158,26 @@ if ($main::opt_t) {
 # default to the OFA location
 #
 $main::ALERTLOG_FILE = "$ENV{ORACLE_BASE}$main::PATH_DELIM" . 'admin' . "$main::PATH_DELIM$ENV{ORACLE_SID}" . "$main::PATH_DELIM" . 'bdump' . "$main::PATH_DELIM" . "alert_$ENV{ORACLE_SID}.log";
-if ($main::opt_a) {
-    $main::ALERTLOG_FILE = $main::opt_a;
+if (defined $main::opt_a) {
+    if ($main::WINDOWS == 1) {
+	if ($main::opt_l =~ /^\w:/) {
+	    $main::ALERTLOG_FILE = $main::opt_a;
+	} else {
+	    $main::ALERTLOG_FILE = $main::wd .
+		$main::PATH_DELIM . $main::opt_a;
+	}
+    } else {
+	if (($main::opt_a =~ /^\./) ||
+	    ($main::opt_a =~ /^\//)) {
+	    $main::ALERTLOG_FILE = $main::wd
+		. $main::PATH_DELIM . $main::opt_a;
+	} else {
+	    $main::ALERTLOG_FILE = $main::opt_a;
+	}
+    }
 }
 $main::PASS = "manager";
-if ($main::opt_p) {
+if (defined $main::opt_p) {
     $main::PASS = $main::opt_p;
 } elsif (defined ($ENV{DBI_PASS})) {
     $main::PASS = $ENV{DBI_PASS};
@@ -169,46 +188,112 @@ if ($main::opt_p) {
 }
 
 $main::USER = "karma";
-if ($main::opt_u) {
+if (defined $main::opt_u) {
     $main::USER = $main::opt_u;
 } elsif (defined ($ENV{DBI_USER})) {
     $main::USER = $ENV{DBI_USER};
 }
-my $FREQUENCY = 60;
-if ($main::opt_f) {
+my $FREQUENCY = 300;
+if (defined $main::opt_f) {
     $FREQUENCY = $main::opt_f * 60;
 }
-my $POSITION_FILE = ".karmagent.sav";
-if ($main::opt_k) {
-    $POSITION_FILE = $main::opt_k;
+
+#my $POSITION_FILE = ".karmagent.sav";
+#if (defined $main::opt_k) {
+#    $POSITION_FILE = $main::opt_k;
+#}
+
+if ($main::WINDOWS == 0) {
+    $main::wd = `/bin/pwd`;
+} else {
+    $main::wd = Win32::GetCwd ();
 }
+chomp $main::wd;
+
+$main::POSITION_FILE = $main::wd . $main::PATH_DELIM . 'karmagent.sav';
+if (defined $main::opt_k) {
+
+    if ($main::WINDOWS == 1) {
+        if ($main::opt_k =~ /^\w:/) {
+            $main::POSITION_FILE = $main::opt_k;
+        } else {
+            $main::POSITION_FILE = $main::wd .
+                $main::PATH_DELIM . $main::opt_k;
+        }
+    } else {
+        if (($main::opt_k =~ /^\./) ||
+            ($main::opt_k =~ /^\//)) {
+            $main::POSITION_FILE = $main::wd
+                . $main::PATH_DELIM . $main::opt_k;
+        } else {
+            $main::POSITION_FILE = $main::opt_k;
+        }
+    }
+}
+
 
 #
 # set the logfile name
 #
-$main::logfile_name = "-";
+$main::LOG_FILE_NAME = "-";
 if (defined ($main::opt_l)) {
-    $main::logfile_name = "$main::opt_l";
+    if ($main::WINDOWS == 1) {
+	if ($main::opt_l =~ /^\w:/) {
+	    $main::LOG_FILE_NAME = $main::opt_l;
+	} else {
+	    $main::LOG_FILE_NAME = $main::wd .
+		$main::PATH_DELIM . $main::opt_l;
+	}
+    } else {
+	if (($main::opt_l =~ /^\./) ||
+	    ($main::opt_l =~ /^\//)) {
+	    $main::LOG_FILE_NAME = $main::wd
+		. $main::PATH_DELIM . $main::opt_l;
+	} else {
+	    $main::LOG_FILE_NAME = $main::opt_l;
+	}
+    }
 }
 
+print ("Starting karmagentd monitoring daemon...\n");
 
-$main::logfile = new IO::File ">>$main::logfile_name";
+#
+# background ourselves
+#
+if (($main::WINDOWS == 0) && 
+    (not (defined $main::DEBUG_LEVEL))) {
+    daemonize ();
+}
+
+$main::logfile = new IO::File ">>$main::LOG_FILE_NAME";
 if (not (defined $main::logfile)) {
     $main::logfile = new IO::File ">>-";
-    logMessage ("Cannot open logfile: $main::logfile_name, using STDOUT");
+    logMessage ("Cannot open logfile: $main::LOG_FILE_NAME, using STDOUT");
+}
 
+#
+# unbuffer output
+#
+if (defined $main::logfile) {
+    select ($main::logfile); $| = 1;
+    select (STDOUT);
 }
 
 #
 # background ourselves
 #
-daemonize ();
-
+#if (($main::WINDOWS == 0) && 
+#    (not (defined $main::DEBUG_LEVEL))) {
+#    daemonize ();
+#}
 
 #
 # signal handlers...
 #
-$SIG{TERM} = \&catch_term;
+if ($main::WINDOWS == 0) {
+    $SIG{TERM} = \&catchTerm;
+    $SIG{HUP} = \&catchHup;
+}
 
 $main::cALERT_POSITION = "alert_position";
 $main::cBEGINNING_OF_FILE = 0;
@@ -217,25 +302,21 @@ $main::cBEGINNING_OF_FILE = 0;
 #$main::UPCMD = "uptime";
 $main::uptimeString = "";
 
-print ("\nStarting karma monitoring daemon...\n");
-debugMessage ("DEBUG_LEVEL:$main::DEBUG_LEVEL\n", undef);
-debugMessage ("-- Environment Settings --\n", undef);
-debugMessage ("ORACLE_BASE:$ENV{ORACLE_BASE}\n", undef);
-debugMessage ("ORACLE_HOME:$ENV{ORACLE_HOME}\n", undef);
-debugMessage ("ORACLE_SID:$ENV{ORACLE_SID}\n", undef);
 
 
-#
-# database handle
-#
-debugMessage ("Connecting - TNS:$main::TNS USER:$main::USER PASS:$main::PASS\n", 2);
-$main::dbh = DBI->connect ("DBI:Oracle:$main::TNS", $main::USER, $main::PASS);
-
-if ($main::dbh) {
-    logMessage ("Successfully connected to $main::USER\@$main::TNS...\n");
+if ($main::WINDOWS == 0) {
+    debugMessage ("   IS Win32:NO\n", 1);
 } else {
-    logMessage ("Failed to connect to $main::USER\@$main::TNS - Exiting.\n");
+    debugMessage ("   IS Win32:YES\n", 1);
 }
+debugMessage ("WORKING DIR:$main::wd\n", 1);
+debugMessage ("   LOG FILE:$main::LOG_FILE_NAME\n", 1);
+debugMessage ("DEBUG_LEVEL:$main::DEBUG_LEVEL\n", 1);
+debugMessage ("ORACLE_BASE:$ENV{ORACLE_BASE}\n", 1);
+debugMessage ("ORACLE_HOME:$ENV{ORACLE_HOME}\n", 1);
+debugMessage (" ORACLE_SID:$ENV{ORACLE_SID}\n", 1);
+debugMessage (" ORACLE_SID:$ENV{ORACLE_SID}\n", 1);
+debugMessage ("   POS_FILE:$main::POSITION_FILE\n", 1);
 
 # 
 # statements for inserting data into the db
@@ -245,38 +326,58 @@ $main::uptimeStatement =
 $main::alertlogStatement =
     "INSERT INTO karma_alertlog_errors VALUES (sysdate, ?, ?, ?)";
 
+
 #
-# prepare the statements
+# database handle
 #
-$main::uptimeSth = $main::dbh->prepare ($main::uptimeStatement);
-$main::alertlogSth = $main::dbh->prepare ($main::alertlogStatement);
+debugMessage ("Connecting - TNS:$main::TNS USER:$main::USER PASS:$main::PASS\n", 2);
+
+$main::dbh = undef;
+$main::uptimeSth = undef;
+$main::alertlogSth = undef;
+
+#$main::dbh = DBI->connect ("DBI:Oracle:$main::TNS", $main::USER, $main::PASS);
+dbConnect ();
+
+
+if (defined $main::dbh) {
+    logMessage ("Successfully connected to $main::USER\@$main::TNS...\n");
+} else {
+    logMessage ("Failed to connect to $main::USER\@$main::TNS - Exiting.\n");
+}
+
 
 $main::prevTime = getDayMinutes (time ());
 $main::currTime = 0;
 
 $main::currLine = "";
 $main::currPosition = 0;
-if ($main::opt_j) {
+if (defined $main::opt_j) {
     $main::currPosition = $main::opt_j;
 } else {
-    $main::currPosition = readPosition ($POSITION_FILE);
+    $main::currPosition = readPosition ($main::POSITION_FILE);
 }
 
-debugMessage ("Reading alertlog: $main::ALERTLOG_FILE\n", undef);
-debugMessage ("Start reading at byte $main::currPosition\n", undef);
+debugMessage ("Reading alertlog: $main::ALERTLOG_FILE\n", 1);
+debugMessage ("Start reading at byte $main::currPosition\n", 1);
 $main::alert_file = new IO::File "<$main::ALERTLOG_FILE";
 if (not ($main::alert_file)) {
     logMessage ("Could not open alertlog file.  Exiting.\n");
-    exit;
+    exit 1;
 }
 
 seek ($main::alert_file, $main::currPosition, $main::cBEGINNING_OF_FILE);
 
 while (1) {
-#    if (($main::currTime == 0) || ($main::currTime >= $main::prevTime + $FREQUENCY)) {
+    if ((not (defined $main::dbh)) ||
+	(not (defined $main::uptimeSth)) ||
+	(not (defined $main::alertlogSth))) {
+	dbConnect ();
+    } else {
+        #if (($main::currTime == 0) || ($main::currTime >= $main::prevTime + $FREQUENCY)) {
 
 	$main::prevTime = $main::currTime;
-
+	
 	# 
 	# fetch the most current uptime stats
 	#
@@ -287,40 +388,22 @@ while (1) {
 	debugMessage ("INSERTING OS VALUES: $main::uptimes[0], $main::uptimes[1], $main::uptimes[2]\n", 2);
 	$main::uptimeSth->execute ($main::uptimes[0], $main::uptimes[1], $main::uptimes[2]);
 
-	#
-	# fetch any new alert log errors
-	#
-	while (<$main::alert_file>) {
-	    
-	    $main::currLine = $_;
-	    chomp ($main::currLine);
-	    $main::lineNum++;	
-	    if ($main::lineNum % 50) {
-		debugMessage ("LINE:$main::lineNum\n", 2);
-	    }
-	    $main::currPosition = tell;
 
-	    debugMessage ("TESTING - $main::currLine\n", 2);
-	    $main::lineRef = checkLine ($main::currLine);
-	    
-	    if ($main::lineRef->[0]) {
-		debugMessage ("INSERTING ALERTLOG VALS: $main::lineRef->[0], $main::lineRef->[1], $main::lineRef->[2]\n", 2);
-		$main::alertlogSth->execute ($main::lineRef->[0],
-				       $main::lineRef->[1],
-				       $main::lineRef->[2]);
+	checkAlertFile ();
 
-	    }
-	    
-	}
-
-	writePosition ($POSITION_FILE, $main::currPosition);
-
-	debugMessage ("Sleeping for $FREQUENCY seconds...\n", undef);
+	debugMessage ("Sleeping for $FREQUENCY seconds...\n", 1);
 	sleep ($FREQUENCY);
 
-    $main::currTime = getDayMinutes (time ());
+	$main::currTime = getDayMinutes (time ());
+    }
 }
 
+
+#--------------------------------------------------------------
+#
+#    ROUTINES
+#
+#--------------------------------------------------------------
 
 
 
@@ -335,7 +418,7 @@ sub printHelp () {
 	("\n",
 	 " v - print version info and exit\n",
 	 " h - print this help info\n",
-	 " f - fequency in minutes to wakeup & check things (default 1)\n",
+	 " f - fequency in minutes to wakeup & check things (default 5)\n",
 	 " r - reset the alert.log, and truncate it's table\n",
 	 " u - user to login as (default karma)\n",
 	 " p - oracle login password (otherwise you're prompted)\n",
@@ -354,7 +437,7 @@ sub printHelp () {
 	 "\t[-a alert.log] [-k karmagent.sav] [-b ORACLE_BASE]\n",
 	 "\t[-h ORACLE_HOME] [-s ORACLE_SID] [-d \#]\n");
     
-    exit;
+    exit 1;
 
 }
 
@@ -367,14 +450,14 @@ sub printHelp () {
 sub checkLine ($) {
     my ($inLine) = @_;
 
-    my $facility = "";
-    my $errNum = 0;
-    my $errText = "";
-    my $noErrors = 0;
+    my $facility = undef;
+    my $errNum = undef;
+    my $errText = undef;
+    my $noErrors = undef;
 
     if ($inLine =~ /^ORA-/) {
 
-	debugMessage ("ERRORS --- $inLine\n", undef);
+	debugMessage ("ERRORS --- $inLine\n", 1);
 	$facility = "ORA";
 	$errNum = $inLine;
 	$errNum =~ s/^ORA-//;
@@ -387,7 +470,7 @@ sub checkLine ($) {
 	return [$facility, $errNum, $errText];
     }
     
-    return [];
+    return undef;
 }
 
 #--------------------------------------------------------------
@@ -399,11 +482,11 @@ sub readPosition ($) {
     my ($inFile) = @_;
 
     my $currLine = "";
-    my $retPos = 1;
+    my $retPos = 0;
 
     
     my $pos_file = new IO::File "<$inFile";
-    if ($pos_file) {
+    if (defined $pos_file) {
 	while (<$pos_file>) {
 	    $currLine = $_;
 	    chomp $currLine;
@@ -445,8 +528,20 @@ sub writePosition ($$) {
 #
 #
 #--------------------------------------------------------------
-sub reset_alertlog () {
+sub resetAlertlog () {
+    debugMessage ("ResetAlertlog not implemented yet.\n", 1);
+    $main::currPosition = 0;
+    seek ($main::alert_file, $main::currPosition, $main::cBEGINNING_OF_FILE);
+    checkAlertFile ();
+}
 
+#--------------------------------------------------------------
+#
+# reread config file (HUP signal)
+#
+#--------------------------------------------------------------
+sub catchHup {
+    resetAlertlog ();
 }
 
 #--------------------------------------------------------------
@@ -454,29 +549,90 @@ sub reset_alertlog () {
 # normal kill
 #
 #--------------------------------------------------------------
-sub catch_term {
-    writePosition ($POSITION_FILE, $main::currPosition);
+sub catchTerm {
+    debugMessage ("Exit cleanly.\n", 1);
+    writePosition ($main::POSITION_FILE, $main::currPosition);
     
     $main::logfile->close;
-    #close (AFILE);
+
     #
     # cleanup and exit
     #
-    if ($main::uptimeSth) {
+    if (defined $main::uptimeSth) {
 	$main::uptimeSth->finish;
     }
-    if ($main::alertlogSth) {
+    if (defined $main::alertlogSth) {
 	$main::alertlogSth->finish;
     }
-    if ($main::dbh) {
+    if (defined $main::dbh) {
 	$main::dbh->disconnect;
     }
-    exit 1;
+    exit 0;
 
 }
 
+#----------------------------------------------------------------
+#
+#
+#
+#----------------------------------------------------------------
+sub dbConnect () {
+    $main::dbh = undef;
+    $main::dbh = DBI->connect ("DBI:Oracle:$main::TNS", $main::USER, $main::PASS);
+    
+    #
+    # prepare the statements
+    #
+    $main::uptimeSth = undef;
+    $main::uptimeSth = $main::dbh->prepare ($main::uptimeStatement);
+    if (defined $DBI::errstr) {
+	logMessageWTime ("doConnect uptime prepare - $DBI::errstr\n");
+    }
+
+    $main::alertlogSth = undef;
+    $main::alertlogSth = $main::dbh->prepare ($main::alertlogStatement);
+    if (defined $DBI::errstr) {
+	logMessageWTime ("dbConnect alertlog prepare - $DBI::errstr\n");
+    }
+}
 
 
+#----------------------------------------------------------------
+#
+#
+#
+#----------------------------------------------------------------
+sub checkAlertFile () {
+
+    #
+    # fetch any new alert log errors
+    #
+    if ((defined $main::alert_file) && 
+	(defined $main::alertlogSth)) {
+	while (<$main::alert_file>) {
+	    $main::currLine = $_;
+	    chomp ($main::currLine);
+	    $main::lineNum++;	
+	    if ($main::lineNum % 50 == 0) {
+	    	debugMessage ("LINE:$main::lineNum\n", 3);
+	    }
+	    $main::currPosition = tell;
+	    
+	    debugMessage ("TESTING - $main::currLine\n", 3);
+	    $main::lineRef = undef;
+	    $main::lineRef = checkLine ($main::currLine);
+	    
+	    if (defined $main::lineRef) {
+		debugMessage ("INSERTING ALERTLOG VALS: $main::lineRef->[0], $main::lineRef->[1], $main::lineRef->[2]\n", 2);
+		$main::alertlogSth->execute ($main::lineRef->[0],
+					     $main::lineRef->[1],
+					     $main::lineRef->[2]);
+	    }
+	}
+    
+	writePosition ($main::POSITION_FILE, $main::currPosition);
+    }
+}
 
 #---------------------------------
 #
@@ -539,3 +695,4 @@ it.
 =cut
 
 !NO!SUBS!
+
