@@ -1,0 +1,48 @@
+=head1 NAME
+
+Karma - Win32 Specific Instructions
+
+=for html <body bgcolor="#3399cc">
+
+=head1 DESCRIPTION
+
+From the reports I've received, karma does indeed run under various
+Windows platforms.  Unfortunately, up to this point, I have not
+had a windows box on which to do development, so there are some 
+limitations.  In particular, karmactl does not work well, as
+it relies on the unix fork() facility, as well as named pipes
+for status information, and process signals such as INT, KILL, 
+HUP, USR1, and USR2.  In addition, I have not heard reports
+pro or con about karmagentd, so if you find it works, email me
+with more info, so I can add it to this document.
+
+=head1 GENERAL INSTRUCTIONS
+
+I've made sufficient modifications to karmad so that it checks
+to see if it's running on a win32 platform.  If it is, it will 
+*NOT* try to fork.  To start it do the following:
+
+C<perl karmad -c karma.conf>
+
+To get help do this:
+
+C<perl karmad -h>
+
+I need feedback to make it work better.  If you find something
+could be done better, by all means email me.  If you wanna send
+a patch to fix something, EVEN BETTER.
+
+=head1 FUTURE DIRECTIONS
+
+I'd like to have karma running with all it's features and tested
+for solid stability.  I'd in addition like it to run in a native
+way, for instance as a service, the Win32 equivalent of a unix
+background process.  
+
+However, I'm no Win32 expert.  If you like doing Perl development
+on Win32, and are interested in Karma, let me know.  Perhaps you
+can help with the port and testing.
+
+=cut
+
+

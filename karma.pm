@@ -1,6 +1,6 @@
 #------------------------------------------------------------------
 # 
-# Karma Copyright (C) 1999  Sean Hull <shull@pobox.com>
+# Karma Copyright (C) 2000  Sean Hull <shull@pobox.com>
 #
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -53,8 +53,8 @@ sub getDayMinutes ($);
 # perl standards like real number version numbers, so for
 # now we'll drop the linux convention...
 #
-$main::KVERSION='0.9.8';
-$main::VERSION='0.98';
+$main::KVERSION='1.0.0';
+$main::VERSION='1.00';
 $main::DEBUG_LEVEL = 0;
 
 #
@@ -74,7 +74,7 @@ $main::DOC_ALINK = '#ff9933';
 sub printVersion () {
     print 
 	"\n",
-	"  Karma v$main::VERSION Copyright (C) 1999 Sean Hull <shull\@pobox.com>\n",
+	"  Karma v$main::VERSION Copyright (C) 2000 Sean Hull <shull\@pobox.com>\n",
 	"  Karma comes with ABSOLUTELY NO WARRANTY; for details\n",
 	"  type \"karmad -w\".  This is free software, and you are\n",
 	"  welcome to redistribute it under certain conditions.\n\n";
@@ -91,7 +91,7 @@ sub printVersion () {
 sub printWarranty () {
     print 
 	"\n",
-	"   Copyright (C) 1999  Sean Hull <shull\@pobox.com>\n",
+	"   Copyright (C) 2000  Sean Hull <shull\@pobox.com>\n",
 	"\n",
 	"   This program is free software; you can redistribute it and/or modify\n",
 	"   it under the terms of the GNU General Public License as published by\n",

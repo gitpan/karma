@@ -15,7 +15,7 @@ print OUT <<'!NO!SUBS!';
 
 #------------------------------------------------------------------
 # 
-# Karma Copyright (C) 1999  Sean Hull <shull@pobox.com>
+# Karma Copyright (C) 2000  Sean Hull <shull@pobox.com>
 #
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -99,7 +99,8 @@ $main::opt_l = undef;
 $main::opt_d = undef;
 $main::opt_f = undef;
 $main::opt_h = undef;
-getopts('hspfrtwvi:k:l:c:d');
+$main::opt_a = undef;
+getopts('haspfrtwvi:k:l:c:d');
 
 if (defined $main::opt_h) {
     printHelp ();
@@ -109,6 +110,9 @@ if (defined ($main::opt_w)) {
 }
 if (defined ($main::opt_s)) {
     startKarma ();
+}
+if (defined ($main::opt_v)) {
+    printVersion ();
 }
 
 #
@@ -121,6 +125,9 @@ if (defined ($main::opt_i)) {
     $main::KARMA_PID = get_pid ();
 }
 
+if (defined $main::opt_a) {
+    checkRunning ();
+}
 if (defined ($main::opt_f)) {
     refreshKarma ();
 }
@@ -128,13 +135,15 @@ if (defined ($main::opt_p)) {
     stopKarma ();
 }
 if (defined ($main::opt_r)) {
+    if (defined $main::opt_c) {
+	print ("Don't bother setting config file with a reload.\n");
+	print ("It is not supported.  To do this, stop and restart\n");
+	print ("karmad with a different config file.\n");
+    }
     reloadKarma ();
 }
 if (defined ($main::opt_t)) {
     statusKarma ();
-}
-if (defined ($main::opt_v)) {
-    printVersion ();
 }
 if (defined ($main::opt_d)) {
     if (defined $main::opt_k) {
@@ -154,13 +163,14 @@ sub printHelp () {
     print 
 	"\n",
 	" -h print help and exit\n",
+	" -a check if karmad is running, return via $? (0 ok, 1 not ok)\n",
 	" -v print version and exit\n",
-	" -f force a refresh of all service statuses\n",
+	" -f force refresh all service statuses (other options ignored)\n",
 	" -w print warranty and exit\n",
 	" -s start karmad daemon\n",
 	" -p stop karmad daemon\n",
 	" -t print status of running karmad daemon\n",
-	" -r reload karam.conf config file\n",
+	" -r reload current config file (other options ignored)\n",
 	" -i specify process id (if lock file is missing)\n",
 	" -l specify logfile for karmad (ignored if not starting karmad)\n",
 	" -c specify karma config file (ignored if not starting karmad)\n",
@@ -308,6 +318,22 @@ sub cleanupKarma () {
 }
 
 
+#-----------------------------------------------------------------------
+#
+#
+#
+#-----------------------------------------------------------------------
+sub checkRunning () {
+
+    my $proc_string = `ps --no-headers -$main::KARMA_PID`;
+    if ($proc_string =~ /karma/i) {
+	exit 0;
+    } else {
+	exit 1;
+    }
+
+}
+
 
 #-----------------------------------------------------------------------
 #
@@ -317,7 +343,7 @@ sub cleanupKarma () {
 sub reloadKarma () {
 
     if ($main::KARMA_PID > 0) {
-	print ("Reloading karma.conf config pid:$main::KARMA_PID...\n");
+	print ("Reloading config file - pid:$main::KARMA_PID...\n");
 	kill HUP => $main::KARMA_PID
 	    or die ("Can't reread config file pid:$main::KARMA_PID - $!\n");
     } else {

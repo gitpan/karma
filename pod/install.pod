@@ -6,20 +6,36 @@ Karma - Installation Guide
 
 =head1 Standard Install
 
-At this time, unfortunately, I haven't had a chance to build an 
-install script.  Partly this is because I haven't completely
-thought out how it should be installed.  Eventually karma will
-include a standard perl install script.
+Karma finally has a standard perl install.  It comes with a Makefile.PL
+which you use to build a makefile for your system.  You can do that
+as follows:
 
-=head1 General Instructions
+C<$ perl Makefile.PL>
 
-Currently, following the directions in the 
+The resulting "Makefile" can be used to make, test, and install karma.
 
-=for html <A HREF=quickstart.html>Quickstart Guide</A>
+Once you've installed karma on your system, you may want to create a
+karma user in your database.  There are scripts in the "sql"
+directory for creating the user and prompting for a password.
+In addition if you will be using alertlog and os monitoring, you'll 
+want to create the karma objects in the karma user schema.  There is
+a script in the "sql" directory to create these objects as well.
+
+Once you have everything installed, the 
+
+=for html <A HREF=quickstart.html>
+
+Quickstart Guide
+
+=for html </A>
 
 should explain to you how to get started.  See the 
 
-=for html <A HREF=config.html>Configuration Guide</A> 
+=for html <A HREF=config.html>
+
+Configuration Guide
+
+=for html </A> 
 
 for more information on how to create a
 
@@ -53,11 +69,13 @@ Yes, you can use karma with a webserver, but there isn't too much
 you need to do on the karma end of things.  Basically karma
 generates a set of html pages.  These by default go into "doc_root"
 in the karma software directory, but this path can be changed via
-the C<-k> option to karmad when you start it.  Specify a valid path,
+the C<-k> option to karmad when you start it or the "doc_root"
+directive in your config file.  Specify a valid path,
 and it will write the files there.  Be sure to move the existing
-karma documentsfrom doc_root to that location, and create
+karma documents from doc_root to that location, and create
 directories named "docs","help", "images", and "info" there as
-well.
+well.  In short, you should copy all the files from the install
+doc_root except maybe karma.html, which will be recreated.
 
 =head1 Installing Perl
 
@@ -146,16 +164,16 @@ documentation at
 
 =for html <A HREF=http://technet.oracle.com/doc/platforms.htm>
 
-technet
+http://technet.oracle.com
 
 =for html </A>
 
 though you'll need to register first.  It's free.  In addition,
-you can find
+you can find linux specific installation instructions here:
 
 =for html <A HREF=http://jordan.fortwayne.com/oracle/>
 
-linux specific installation instructions here.
+http://jordan.fortwayne.com/oracle/
 
 =for html </A>
 

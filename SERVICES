@@ -24,12 +24,15 @@ Alert Log Errors
     table for new entries. Checkout the karmagentd for more information on
     configuring that end of things.
 
-    By default, if you are monitoring the alert.log, and there have been any
-    errors in the last day a WARNING is flagged, and within the last hour,
-    an ALERT. In addition, if you have your config file set to do alert.log
-    monitoring, but the karmagentd daemon isn't running, an ALERT is also
-    flagged. If you haven't created the karma_alertlog_errors table, it is
-    set to NO_STATUS.
+    Unlike other services, the alertlog facility actually ignores the
+    warning and alert thresholds right now. The way it works currently is
+    that if there are any ORA-7445, or ORA-600's an ALERT will be flagged,
+    and for any other errors a WARNING is flagged. Only errors logged in the
+    last day (by karmagentd which may differ from the time the db logged the
+    error) are considered by this report. In addition, if you have your
+    config file set to do alert.log monitoring, but the karmagentd daemon
+    isn't running, an ALERT is also flagged. If you haven't created the
+    karma_alertlog_errors table, it is set to NO_STATUS.
 
 Initialization Parameters
     This section displays the Oracle initialization parameters from the

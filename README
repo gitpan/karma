@@ -13,7 +13,14 @@ DESCRIPTION
     Next start karmad running. You can use the -h option for help, or just
     start it like this:
 
-    `$ bin/karmactl -s'
+    `$ bin/karmactl -s -c karma.conf'
+GENERAL INSTRUCTIONS
+    See the quickstart document for more information about getting started.
+    See the config guide for information on configuration of karma in
+    general, and the karma.conf file in particular. See the install guide
+    for more info on installation.
+
+FILE DESCRIPTIONS
 karmactl
     start, stop, and query a running karmad daemon. use -h option for help
 
@@ -62,5 +69,5 @@ doc_root
     This is the document root where your html files will be generated. If
     you're going to use karma with a webserver, put this in your web
     doc_root, perhaps naming it karma. Use the -k option to karmactl to
-    specify it's location.
+    specify it's location, or the doc_root directive in your config file.
 

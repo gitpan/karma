@@ -103,6 +103,19 @@
 	</UL>
 
 	<LI><A HREF="#Version_0_9_8">Version 0.9.8</A>
+	<UL>
+
+		<LI><A HREF="#07_01_00">07.01.00</A>
+		<LI><A HREF="#07_01_00">07.01.00</A>
+	</UL>
+
+	<LI><A HREF="#Version_0_9_9">Version 0.9.9</A>
+	<UL>
+
+		<LI><A HREF="#07_07_00">07.07.00</A>
+	</UL>
+
+	<LI><A HREF="#Version_1_0_0">Version 1.0.0</A>
 </UL>
 <!-- INDEX END -->
 
@@ -463,6 +476,54 @@ most of them here.
 <P>
 <HR>
 <H1><A NAME="Version_0_9_8">Version 0.9.8</A></H1>
+<P>
+<HR>
+<H2><A NAME="07_01_00">07.01.00</A></H2>
+<DL>
+<DT><STRONG>o fixed serious bug with karmagentd not starting, failed to read password
+needed to chomp() password after ReadKey</STRONG><DD>
+<DT><STRONG>o karmagentd now checks for karma_agent, karma_os_stats,
+  karma_alertlog_errors tables, exits if they don't exist</STRONG><DD>
+<DT><STRONG>o fixed -a option, sometimes working directory would get prepended to
+  absolute path</STRONG><DD>
+<DT><STRONG>o fixed -t option, also specifying DBI_DSN environment variable supported
+  now, and take precedence over command line options</STRONG><DD>
+</DL>
+<P>
+<HR>
+<H2><A NAME="07_01_00">07.01.00</A></H2>
+<DL>
+<DT><STRONG>o fixed short emails so they use shortened service names</STRONG><DD>
+<DT><STRONG>o added configuration information in status output (karmactl -t)</STRONG><DD>
+<DT><STRONG>o fixed uptime display in status output</STRONG><DD>
+<DT><STRONG>o tested for short and full email addresses, and notification worked fine</STRONG><DD>
+<DT><STRONG>o added -a option to karmactl, checks to see if karmad is running, 
+  returns status via $? (0 ok, 1 not ok)</STRONG><DD>
+<DT><STRONG>o a bug surfaced where redolog errors generated 1000+ emails, however
+there were a number of bugs I fixed in there, especially in relation
+to accessing those data structures.  The bug has not resurfaced, and I
+so far cannot reproduce it.
+ 
+=back</STRONG><DD>
+<H1><A NAME="Version_0_9_9">Version 0.9.9</A></H1>
+<H2><A NAME="07_07_00">07.07.00</A></H2>
+<DL>
+<DT><STRONG>o readme.win32 document explaining win32 specific issues</STRONG><DD>
+<DT><STRONG>o about.html page updated for 1.0 release</STRONG><DD>
+<DT><STRONG>o added update interval (wakeup) to command line check status</STRONG><DD>
+<DT><STRONG>o warning messages get emailed even while there are alert 
+status messages</STRONG><DD>
+<DT><STRONG>o updated install document</STRONG><DD>
+<DT><STRONG>o karmagentd's default logfile is karmagent.log (was -)</STRONG><DD>
+<DT><STRONG>o updated readme file</STRONG><DD>
+<DT><STRONG>o karmagent.sav file changed to .karmagent.sav</STRONG><DD>
+<DT><STRONG>o fixed karmagentd bug, would fail on error messages starting with ORA-##:
+because it would try to insert ##: as a number</STRONG><DD>
+<DT><STRONG>o been testing successfully with running version for 2+ days now, 
+stability is quite good for both karmad and karmagentd</STRONG><DD>
+</DL>
+<H1><A NAME="Version_1_0_0">Version 1.0.0</A></H1>
+</DL>
 </BODY>
 
 </HTML>

@@ -12,6 +12,8 @@
 
 	<LI><A HREF="#NAME">NAME</A>
 	<LI><A HREF="#DESCRIPTION">DESCRIPTION</A>
+	<LI><A HREF="#GENERAL_INSTRUCTIONS">GENERAL INSTRUCTIONS</A>
+	<LI><A HREF="#FILE_DESCRIPTIONS">FILE DESCRIPTIONS</A>
 	<LI><A HREF="#karmactl">karmactl</A>
 	<LI><A HREF="#karmad">karmad</A>
 	<LI><A HREF="#karma_pm">karma.pm</A>
@@ -55,8 +57,20 @@ Next start karmad running. You can use the -h option for help, or just
 start it like this:
 
 <DL>
-<DT><STRONG><A NAME="item__">$ bin/karmactl -s</A></STRONG><DD>
+<DT><STRONG><A NAME="item__">$ bin/karmactl -s -c karma.conf</A></STRONG><DD>
 </DL>
+<P>
+<HR>
+<H1><A NAME="GENERAL_INSTRUCTIONS">GENERAL INSTRUCTIONS</A></H1>
+<P>
+See the quickstart document for more information about getting started. See
+the config guide for information on configuration of karma in general, and
+the karma.conf file in particular. See the install guide for more info on
+installation.
+
+<P>
+<HR>
+<H1><A NAME="FILE_DESCRIPTIONS">FILE DESCRIPTIONS</A></H1>
 <P>
 <HR>
 <H1><A NAME="karmactl">karmactl</A></H1>
@@ -146,7 +160,7 @@ and KARMA_OS_STATS for collecting info on the database server
 This is the document root where your html files will be generated. If
 you're going to use karma with a webserver, put this in your web doc_root,
 perhaps naming it karma. Use the -k option to karmactl to specify it's
-location.
+location, or the doc_root directive in your config file.
 
 </BODY>
 

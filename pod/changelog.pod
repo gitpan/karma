@@ -599,6 +599,99 @@ o docs explain services, how to tune, instead of karma config info
 
 =head1 Version 0.9.8
 
+=head2 07.01.00
+
+=over 4
+
+=item
+o fixed serious bug with karmagentd not starting, failed to read password
+needed to chomp() password after ReadKey
+
+=item
+o karmagentd now checks for karma_agent, karma_os_stats,
+  karma_alertlog_errors tables, exits if they don't exist
+
+=item
+o fixed -a option, sometimes working directory would get prepended to
+  absolute path
+
+=item
+o fixed -t option, also specifying DBI_DSN environment variable supported
+  now, and take precedence over command line options
+
+=back
+
+=head2 07.01.00
+
+=over 4
+
+=item
+o fixed short emails so they use shortened service names
+
+=item
+o added configuration information in status output (karmactl -t)
+
+=item 
+o fixed uptime display in status output
+
+=item
+o tested for short and full email addresses, and notification worked fine
+
+=item
+o added -a option to karmactl, checks to see if karmad is running, 
+  returns status via $? (0 ok, 1 not ok)
+
+=item
+o a bug surfaced where redolog errors generated 1000+ emails, however
+there were a number of bugs I fixed in there, especially in relation
+to accessing those data structures.  The bug has not resurfaced, and I
+so far cannot reproduce it.
+ 
+=back
+
+=head1 Version 0.9.9
+
+=head2 07.07.00
+
+=over 4
+
+=item
+o readme.win32 document explaining win32 specific issues
+
+=item
+o about.html page updated for 1.0 release
+
+=item
+o added update interval (wakeup) to command line check status 
+
+=item
+o warning messages get emailed even while there are alert 
+status messages
+
+=item
+o updated install document
+
+=item
+o karmagentd's default logfile is karmagent.log (was -)
+
+=item
+o updated readme file
+
+=item
+o karmagent.sav file changed to .karmagent.sav
+
+=item
+o fixed karmagentd bug, would fail on error messages starting with ORA-##:
+because it would try to insert ##: as a number
+
+=item
+o been testing successfully with running version for 2+ days now, 
+stability is quite good for both karmad and karmagentd
+
+=back
+
+=head1 Version 1.0.0
+
 =cut
 
 

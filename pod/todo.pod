@@ -9,23 +9,21 @@ Karma - TODO
 This document details the remaining tasks to finish for particular
 versions of karma.  
 
-=head1 1.0.0
+=head1 2.0.0 - Complete Rewrite 
 
 =over 4
 
 =item
-o 2-3 day running test
-
-=back
-
-=head1 0.9.9
-
-=over 4
+o object oriented, enabling non-Oracle db support
 
 =item
-o document explaining Win32 usage, limitations, and issues
+o store sql in views, easily changed, less code in app
+
+=item
+o other new features
 
 =back
+
 
 
 

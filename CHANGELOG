@@ -214,3 +214,43 @@ Version 0.9.7
 
     o docs explain services, how to tune, instead of karma config info
 Version 0.9.8
+  07.01.00
+
+    o fixed serious bug with karmagentd not starting, failed to read
+    password needed to chomp() password after ReadKey
+    o karmagentd now checks for karma_agent, karma_os_stats,
+    karma_alertlog_errors tables, exits if they don't exist
+    o fixed -a option, sometimes working directory would get prepended to
+    absolute path
+    o fixed -t option, also specifying DBI_DSN environment variable
+    supported now, and take precedence over command line options
+  07.01.00
+
+    o fixed short emails so they use shortened service names
+    o added configuration information in status output (karmactl -t)
+    o fixed uptime display in status output
+    o tested for short and full email addresses, and notification worked
+    fine
+    o added -a option to karmactl, checks to see if karmad is running,
+    returns status via $? (0 ok, 1 not ok)
+    o a bug surfaced where redolog errors generated 1000+ emails, however
+    there were a number of bugs I fixed in there, especially in relation to
+    accessing those data structures. The bug has not resurfaced, and I so
+    far cannot reproduce it.
+Version 0.9.9
+  07.07.00
+
+    o readme.win32 document explaining win32 specific issues
+    o about.html page updated for 1.0 release
+    o added update interval (wakeup) to command line check status
+    o warning messages get emailed even while there are alert status
+    messages
+    o updated install document
+    o karmagentd's default logfile is karmagent.log (was -)
+    o updated readme file
+    o karmagent.sav file changed to .karmagent.sav
+    o fixed karmagentd bug, would fail on error messages starting with
+    ORA-##: because it would try to insert ##: as a number
+    o been testing successfully with running version for 2+ days now,
+    stability is quite good for both karmad and karmagentd
+Version 1.0.0

@@ -5,7 +5,7 @@ DESCRIPTION
     This document details the remaining tasks to finish for particular
     versions of karma.
 
-1.0.0
-    o 2-3 day running test
-0.9.9
-    o document explaining Win32 usage, limitations, and issues
+2.0.0 - Complete Rewrite
+    o object oriented, enabling non-Oracle db support
+    o store sql in views, easily changed, less code in app
+    o other new features
