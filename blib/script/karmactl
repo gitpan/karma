@@ -1,17 +1,8 @@
-use Config;
-use File::Basename qw(basename dirname);
-chdir(dirname($0));
-($file = basename($0)) =~ s/\.PL$//i;
-open OUT,">$file" or die "Can't create $file: $!";
-chmod(0755, $file);
-print "Extracting $file (with variable substitutions)\n";
+#!/usr/bin/perl -w
 
-print OUT <<"!GROK!THIS!";
-$Config{'startperl'} -w
+eval 'exec /usr/bin/perl -w -S $0 ${1+"$@"}'
+    if 0; # not running under some shell
 
-!GROK!THIS!
-
-print OUT <<'!NO!SUBS!';
 
 #------------------------------------------------------------------
 # 
@@ -111,9 +102,6 @@ if (defined ($main::opt_w)) {
 if (defined ($main::opt_s)) {
     startKarma ();
 }
-if (defined ($main::opt_v)) {
-    printVersion ();
-}
 
 #
 # determine the process id if karma is already running
@@ -144,6 +132,9 @@ if (defined ($main::opt_r)) {
 }
 if (defined ($main::opt_t)) {
     statusKarma ();
+}
+if (defined ($main::opt_v)) {
+    printVersion ();
 }
 if (defined ($main::opt_d)) {
     if (defined $main::opt_k) {
@@ -467,4 +458,3 @@ C<karmactl [-h|-v|-w|-s|-p|-t|-r|-d] [-l file] [-c file] [-k dir]>
 
 =cut
 
-!NO!SUBS!

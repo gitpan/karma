@@ -1,17 +1,8 @@
-use Config;
-use File::Basename qw(basename dirname);
-chdir(dirname($0));
-($file = basename($0)) =~ s/\.PL$//i;
-open OUT,">$file" or die "Can't create $file: $!";
-chmod(0755, $file);
-print "Extracting $file (with variable substitutions)\n";
+#!/usr/bin/perl -w
 
-print OUT <<"!GROK!THIS!";
-$Config{'startperl'} -w
+eval 'exec /usr/bin/perl -w -S $0 ${1+"$@"}'
+    if 0; # not running under some shell
 
-!GROK!THIS!
-
-print OUT <<'!NO!SUBS!';
 
 #------------------------------------------------------------------
 # 
@@ -4107,43 +4098,43 @@ sub showStatus {
 
 	# short email addresses for this prefgroup (if any)
 	#
-#	if (defined $main::config_email{$thePrefGroup}{$main::cSHORT_EMAIL}[0]) {
-#	    print FIFO ('     SHORT email notification to: ');
-#	    my $aStr = 'TEST - SHORT';#getArrayString
+	if (defined $main::config_email{$thePrefGroup}{$main::cSHORT_EMAIL}[0]) {
+	    print FIFO ('     SHORT email notification to: ');
+	    my $aStr = 'TEST - SHORT';#getArrayString
 		#(@{$main::config_email{$thePrefGroup}{$main::cSHORT_EMAIL}});
-#	    print FIFO $aStr;
-#	    print FIFO ("\n");
-#	}
+	    print FIFO $aStr;
+	    print FIFO ("\n");
+	}
 
 	# full email addresses for this prefgroup (if any)
 	#
-#	if (defined $main::config_email{$thePrefGroup}{$main::cFULL_EMAIL}[0]) {
-#	    print FIFO ('     FULL email notification to: ');
-#	    my $aStr = 'TEST - FULL';#getArrayString
-#		#(@{$main::config_email{$thePrefGroup}{$main::cFULL_EMAIL}});
-#	    print FIFO $aStr;
-#	    print FIFO ("\n");
-#	}
+	if (defined $main::config_email{$thePrefGroup}{$main::cFULL_EMAIL}[0]) {
+	    print FIFO ('     FULL email notification to: ');
+	    my $aStr = 'TEST - FULL';#getArrayString
+		#(@{$main::config_email{$thePrefGroup}{$main::cFULL_EMAIL}});
+	    print FIFO $aStr;
+	    print FIFO ("\n");
+	}
 
 	# warning services, and frequency for this prefgroup (if any) 
 	#
-#	if (defined $main::config_notify{$thePrefGroup}{$main::cNOTIFY_WARN}[0]) {
-#	    print FIFO ('     WARNINGs sent every ');
+	if (defined $main::config_notify{$thePrefGroup}{$main::cNOTIFY_WARN}[0]) {
+	    print FIFO ('     WARNINGs sent every ');
 	    #print FIFO $main::config_notify{$thePrefGroup}{$main::cNOTIFY_WARN}[$main::cNOTIFY_INT];
-#	    print FIFO (' minutes for: ');
+	    print FIFO (' minutes for: ');
 	    #print FIFO @{$main::config_notify{$thePrefGroup}{$main::cNOTIFY_WARN}[$main::cNOTIFY_SERV]};
-#	    print FIFO ("\n");
-#	}
+	    print FIFO ("\n");
+	}
 
 	# alert services, and frequency for this prefgroup (if any)
 	#
-#	if (defined $main::config_notify{$thePrefGroup}{$main::cNOTIFY_ALRT}[0]) {
-#	    print FIFO ('     ALERTs sent every ');
-#	    #print FIFO $main::config_notify{$thePrefGroup}{$main::cNOTIFY_ALRT}[$main::cNOTIFY_INT];
-#	    print FIFO (' minutes for: ');
-#	    #print FIFO @{$main::config_notify{$thePrefGroup}{$main::cNOTIFY_ALRT}[$main::cNOTIFY_SERV]};
-#	    print FIFO ("\n");
-#	}
+	if (defined $main::config_notify{$thePrefGroup}{$main::cNOTIFY_ALRT}[0]) {
+	    print FIFO ('     ALERTs sent every ');
+	    #print FIFO $main::config_notify{$thePrefGroup}{$main::cNOTIFY_ALRT}[$main::cNOTIFY_INT];
+	    print FIFO (' minutes for: ');
+	    #print FIFO @{$main::config_notify{$thePrefGroup}{$main::cNOTIFY_ALRT}[$main::cNOTIFY_SERV]};
+	    print FIFO ("\n");
+	}
 
 
 
@@ -5372,4 +5363,3 @@ help on options.
 
 =cut
 
-!NO!SUBS!

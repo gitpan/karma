@@ -52,3 +52,6 @@ Details
     o weekly reports via email
     o karmactl -u for "UP" or not (returns 0/1) useful for other monitoring
     systems
+    o help links include DBA Checklist, with appropriate links
+    o db info link (just v$parameter info now) should include db size, other
+    info about db, also "value" column should be fixed width

@@ -14,18 +14,13 @@ versions of karma.
 =over 4
 
 =item
-o 2-3 day running test
-
-=back
-
-=head1 0.9.9
-
-=over 4
+o 2-3 day running test, if it works, I'll release 1.0 around July 4th!
 
 =item
 o document explaining Win32 usage, limitations, and issues
 
 =back
+
 
 
 

@@ -1,0 +1,8 @@
+07/01/2000 00:22 - readConfig - ORA-12224: TNS:no listener (DBD ERROR: OCIServerAttach)
+07/01/2000 00:22 - readConfig - ORA-12154: TNS:could not resolve service name (DBD ERROR: OCIServerAttach)
+07/01/2000 00:22 - readConfig - ORA-12154: TNS:could not resolve service name (DBD ERROR: OCIServerAttach)
+Using config file: /home/shull/karma/karma099/basic.conf 
+07/01/2000 00:24 - readConfig - ORA-12224: TNS:no listener (DBD ERROR: OCIServerAttach)
+Using config file: /home/shull/karma/karma099/karma.conf 
+07/03/2000 02:50 - readConfig - ORA-01034: ORACLE not available (DBD ERROR: OCISessionBegin)
+07/03/2000 02:50 - readConfig - ORA-01034: ORACLE not available (DBD ERROR: OCISessionBegin)
