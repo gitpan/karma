@@ -27,20 +27,39 @@
 
 use POSIX 'setsid';
 
+$main::WINDOWS = 0;
+$main::PATH_DELIM = '/';
+if (eval 'require Win32') {
+    if ((Win32::IsWin95 ()) || (Win32::IsWinNT ())) {
+	$main::WINDOWS = 1;
+	$main::PATH_DELIM = '\\';
+    }
+}
+
+sub padNum ($$);
+sub getCurrTimeString ($);
+sub getFullTimeString ($);
 sub getTimeString ($);
-sub print_warranty ();
-sub print_version ();
-sub log_message ($);
-sub log_message_wtime ($);
-sub debug_print ($$);
+sub printWarranty ();
+sub printVersion ();
+sub logMessage ($);
+sub logMessageWTime ($);
+sub debugMessage ($$);
 sub getDayMinutes ($);
 
 #
 # current version
 #
-$main::VERSION="0.9.0";
+$main::VERSION="0.9.3";
 $main::DEBUG_LEVEL = 0;
 
+#
+# documentation colors
+#
+$main::DOC_BG = '#003399';
+$main::DOC_LINK = '#996633';
+$main::DOC_VLINK = '#996633';
+$main::DOC_ALINK = '#ff9933';
 
 
 #-----------------------------------------------------------------------
@@ -48,7 +67,7 @@ $main::DEBUG_LEVEL = 0;
 # print version and exit
 #
 #-----------------------------------------------------------------------
-sub print_version () {
+sub printVersion () {
     print 
 	"\n",
 	"  Karma v$main::VERSION Copyright (C) 1999 Sean Hull <shull\@pobox.com>\n",
@@ -65,7 +84,7 @@ sub print_version () {
 # GNU General Public License Warranty
 #
 #-----------------------------------------------------------------------
-sub print_warranty () {
+sub printWarranty () {
     print 
 	"\n",
 	"   Copyright (C) 1999  Sean Hull <shull\@pobox.com>\n",
@@ -94,13 +113,16 @@ sub print_warranty () {
 # write message to logfile
 #
 #-----------------------------------------------------------------------
-sub log_message ($) {
+sub logMessage ($) {
     my ($message) = @_;
 
-    if (defined ($logfile)) {
-	print $logfile ($message);
+    if (defined ($main::logfile)) {
+	print $main::logfile ($message);
+    } else {
+	print ($message);
     }
 }
+
 
 #-----------------------------------------------------------------------
 #
@@ -109,27 +131,31 @@ sub log_message ($) {
 # should this use $currTime??
 #
 #-----------------------------------------------------------------------
-sub log_message_wtime ($) {
+sub logMessageWTime ($) {
     my ($inMessage) = @_;
 
-    my $theTimeStr = getCurrTimeStr ();
-    log_message ("$theTimeStr - $inMessage");
+    my $theTimeStr = getCurrTimeString ($main::currTime);
+    logMessage ("$theTimeStr - $inMessage");
 }
 
 
 #-----------------------------------------------------------------------
 #
 # convert the given time to a string
+#  of the form 14:25
 #
 #-----------------------------------------------------------------------
 sub getTimeString ($) {
     my ($inTime) = @_;
-
-    my $timeStr = "";
-    my $hourStr = "";
-    my $sec =  $min = $hour = $mday = $mon = 
-       $year = $wday = $yday = $isdst = 0;
-
+    my $sec = undef;
+    my $min = undef;
+    my $hour = undef;
+    my $mday = undef;
+    my $mon = undef;
+    my $year = undef;
+    my $wday = undef;
+    my $yday = undef;
+    my $isdst = undef;
 
     #
     # get the time and break it into it's components
@@ -140,38 +166,110 @@ sub getTimeString ($) {
     # adjust minutes, or just put hour and minutes together for time
     # string
     #
-    if ($hour < 10) {
-	$hourStr = "0$hour";
-    } else {
-	$hourStr = "$hour";
-    }
-    if ($min < 10) {
-	$timeStr = "$hourStr:0$min";
-    } else {
-	$timeStr = "$hourStr:$min";
-    }
+    my $hourStr = padNum ($hour, 2);
+    my $minStr = padNum ($min, 2);
+    $timeStr = "$hourStr:$minStr";
 
     return $timeStr;
 }
 
-sub getCurrTimeStr () {
+
+
+#-----------------------------------------------------------------------
+#
+# convert the given time to a string
+#  of the form "MM/DD/YYYY HH:MI"
+#
+#-----------------------------------------------------------------------
+sub getFullTimeString ($) {
+    my ($inTime) = @_;
+    my $sec = undef;
+    my $min = undef;
+    my $hour = undef;
+    my $mday = undef;
+    my $mon = undef;
+    my $year = undef;
+    my $wday = undef;
+    my $yday = undef;
+    my $isdst = undef;
+
+    #
+    # get the time and break it into it's components
+    #
+    ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) =
+	localtime ($inTime);
+
+    # localtime returns current year - 1900 so...
+    $year += 1900;
+
+    #
+    # adjust minutes, or just put hour and minutes together for time
+    # string
+    #
+    my $hourStr = padNum ($hour, 2);
+    my $minStr = padNum ($min, 2);
+    my $dayStr = padNum ($mday, 2);
+    my $monStr = padNum (($mon + 1), 2);
+    $timeStr = "$monStr/$dayStr/$year $hourStr:$minStr";
+
+    return $timeStr;
+}
+
+#---------------------------------------------------------------
+#
+# getCurrTimeString
+#
+#---------------------------------------------------------------
+sub getCurrTimeString ($) {
     my ($inTime) = @_;
 
     if (defined $inTime) {
-	return getTimeString ($inTime);
+	return getFullTimeString ($inTime);
     } elsif (defined $main::currTime) {
-	return getTimeString ($main::currTime);
+	return getFullTimeString ($main::currTime);
     } else {
-	return "";
+	return getFullTimeString (localtime());
     }
 }
+
+
+#---------------------------------------------------------------
+#
+# padNum
+#
+# left pads the input number with 0's to bring it to $inPadSize
+#
+#---------------------------------------------------------------
+sub padNum ($$) {
+    my ($inNum, $inPadSize) = @_;
+    my $retStr = "";
+    my $currSize = 0;
+    if (defined $inNum) {
+	$currSize = length $inNum;
+    }
+    my $i = 0;
+    for ($i = $currSize; $i < $inPadSize; $i++) {
+	$retStr .= "0";
+    }
+    if (defined $inNum) {
+	$retStr .= $inNum;
+    }
+    return $retStr;
+}
+
 
 #-----------------------------------------------------------------------
 #
 # stolen directly from "perldoc perlipc". Hey, it works!
 #
+# (this shouldn't get called if we're running windows...)
+#
+# I wonder how to make STDIN, STDOUT, and STDERR to to the
+# logfile?
+#
 #-----------------------------------------------------------------------
 sub daemonize () {
+    debugMessage ("Backgrounding via daemonize...\n", 1);
     chdir '/'               or die "daemonize - Can't chdir to /: $!";
     open STDIN, '/dev/null' or die "daemonize - Can't read /dev/null: $!";
     open STDOUT, '>/dev/null'
@@ -189,10 +287,15 @@ sub daemonize () {
 #-----------------------------------------------------------------------
 sub getDayMinutes ($) {
     my ($inTime) = @_;
-
-
-    my $sec =  $min = $hour = $mday = $mon = 
-       $year = $wday = $yday = $isdst = 0;
+    my $sec = undef;
+    my $min = undef;
+    my $hour = undef;
+    my $mday = undef;
+    my $mon = undef;
+    my $year = undef;
+    my $wday = undef;
+    my $yday = undef;
+    my $isdst = undef;
     my $dayMinutes = 0;
 
     ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime ($inTime);
@@ -207,15 +310,23 @@ sub getDayMinutes ($) {
 #
 #
 #--------------------------------------------------------------
-sub debug_print ($$) {
+sub debugMessage ($$) {
     my ($inMessage, $inLevel) = @_;
 
     if (defined ($inLevel)) {
 	if ($main::DEBUG_LEVEL >= $inLevel) {
-	    print $inMessage;
+	    if (defined ($main::logfile)) {
+		print $main::logfile $inMessage;
+	    } else {
+		print $inMessage;
+	    }
 	}
     } elsif ($main::DEBUG_LEVEL > 0) {
-	print ("$inMessage\n");
+	if (defined ($main::logfile)) {
+	    print $main::logfile ("$inMessage\n");
+	} else {
+	    print ("$inMessage\n");
+	}
     }
 }
 
@@ -232,3 +343,71 @@ return 1;
 
 
 
+#---------------------------------
+#
+# Plain Old Documentation (pod...)
+#
+#---------------------------------
+
+=pod
+
+=head1 NAME
+
+Karma - Oracle Database Monitor
+
+=head1 DESCRIPTION
+
+Karma is a multi-purpose database monitor which provides various
+monitoring functionality to free the DBA from many day-to-day
+monitoring tasks, allowing time to be spent on more in-depth
+tuning and administration.
+
+=head1 NOTES
+
+Karma is made up of a number of different components.
+
+need text based diagram here...
+
+
+=head1 Main Components
+
+=over 4
+
+=item
+o karmad
+
+=item
+o karmagentd
+
+=item
+o karmactl
+
+=item
+o karma.pm
+
+=back
+
+=head1 SQL
+
+=over 4
+
+=item
+o karma_objs.sql
+
+=item
+o karma_user.sql
+
+=back
+
+=head1 Documentation
+
+All documentation is available in pod format in the 'pod' directory.
+From this common source, one can make text, html, man, and/or latex
+documents suitable for printing.  This is recommended over printing
+the html documents from a browser, as there may be issues with colors
+and non-color printers.  In addition, an install_docs.pl script is
+included which automates the generation of text documents for the
+main karma install directory, as well as the base html document set.
+Generally this is run before distribution.
+
+=cut

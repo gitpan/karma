@@ -1,25 +1,30 @@
+NAME
+    Karma - Future Development
 
-Future Development
-------------------
+DESCRIPTION
+    There are already plans to expand on the functionality present
+    in Karma. Here's a list of some of the things I'm working on for
+    a future release.
 
-There are already plans to expand on the functionality
-present in Karma.  Here's a list of some of the things I'm
-working on for a future release.
-
---
-
-o lynx browser support (no frames, no tables?)
-o configuration check tool (reads karma.conf file)
-o web interface
-  - using karmactl
-  - editing karma.conf
-o more services monitored
-  - hitratios dictcache, rowcache 
-  - listener log monitor
-  - trace/core file monitor
-  - monitor sqlnet performance
-o karma.conf
-  - specify frames/no frames/no tables support 
-  - specify no html pages generated, text only
-  - vertical/horizontal arrangement option
-o whom to contact messages
+Details
+    o lynx browser support (no frames, no tables?)
+    o configuration check tool (reads karma.conf file)
+    o web interface
+    o help page for adding new services
+    - using karmactl
+    - editing karma.conf
+    o more services monitored
+    - hitratios dictcache, rowcache
+    - listener log monitor
+    - trace/core file monitor
+    - monitor sqlnet performance
+    - archive dest directory
+    - backup success
+    o karma.conf
+    - specify frames/no frames/no tables support
+    - specify no html pages generated, text only
+    - vertical/horizontal arrangement option
+    o whom to contact messages
+    o look at adding graphing support http://www.munitions.com/~jra/cricket/
+    o resetting services, once you've seen them, turn back to green
+      (not sure if this fits into the non-CGI thinking so far...)

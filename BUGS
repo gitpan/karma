@@ -1,0 +1,21 @@
+NAME
+    Karma - Bug List
+
+DESCRIPTION
+    Common document to organize all outstanding bugs, and associated
+    version numbers.
+
+Version 0.9.3
+    o problems on Win32
+    o db down doesn't always respect unmonitored services
+Version 1.0.0
+    o Platform: Linux
+    o Oracle Version: 8.0.5.1.0
+    o Description: Shutdown a database while Karmad is running and it
+      segfaults.
+    o Solution: Rebuild DBD::Oracle with
+        `$ perl Makefile.PL -8'
+
+        and rerun karmad. This builds DBD::Oracle with the OCI 7
+        API, which doesn't seem to exhibit this bug.<br>
+

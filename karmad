@@ -26,6 +26,7 @@
 #
 #------------------------------------------------------------------
 
+#$ENV{ORACLE_HOME} = '/home/oracle/product/8.0.5';
 #
 # check for the Mail::Send package before using..
 #
@@ -63,72 +64,35 @@ use IO::File;
 use karma;
 
 
-#---------------------------------
-#
-# Plain Old Documentation (pod...)
-#
-#---------------------------------
-
-=head1 NAME
-
-Karma - Oracle Database Monitoring Software
-
-=head1 SYNOPSIS
-
-Karma is an Web based Oracle monitoring utility.  Use it to watch
-your alert.log, rollback segments, extents, tablespace quotas, 
-latch contention, redologs, fragmentation, and hitratios.  It'll
-also help you find slow running sql queries.  
-
-=head1 NOTES
-
-Get started with karma by first figuring out the databases you
-would like to monitor.  Edit the karma.conf file and add lines
-like this:
-
-karma:TNS_NAME:username:password:X
-
-Check the karma.conf file for more info, or do:
-
-$ perldoc karma.conf
-
-=head1 RECENT CHANGES
-
-o added final more-info pages to "up", "os", "db",
-  "extents", and "fragmentation"
-
-o item finished the server daemon, which allows
-  monitoring the alert.log and uptime on the remote db.
-
-o item added these pod docs
-
-=cut
-
-
 #
 # get the command line options
 #
+$main::opt_d = undef;
 $main::opt_v = undef;
 $main::opt_h = undef;
 $main::opt_k = undef;
 $main::opt_w = undef;
 $main::opt_c = undef;
 $main::opt_l = undef;
-getopts('hc:k:l:vw');
+getopts('hc:k:l:vwd:');
 
 
 
 
 if ($main::opt_v) {
-    print_version ();
+    printVersion ();
 }
 
 if ($main::opt_w) {
-    print_warranty ();
+    printWarranty ();
 }
 
 if ($main::opt_h) {
-    print_help ();
+    printHelp ();
+}
+
+if ($main::opt_d) {
+    $main::DEBUG_LEVEL = $main::opt_d;
 }
 
 #
@@ -136,21 +100,41 @@ if ($main::opt_h) {
 # daemonize changes us to "/" so the daemon doesn't 
 # lock any mounted volumes
 #
-$main::wd = `/bin/pwd`;
+if ($main::WINDOWS == 0) {
+    $main::wd = `/bin/pwd`;
+} else {
+    $main::wd = Win32::GetCwd ();
+}
+
 chomp $main::wd;
 #
 # I'm sure this isn't the perl way, but for now...
 #
+#debugMessage ("WORKING DIR:$main::wd\n");
+
 $main::KARMA_HOME = $main::wd;
 if (defined $ENV{KARMA_HOME}) {
-     $main::KARMA_HOME=$ENV{KARMA_HOME};
+    if ((-e "$main::PATH_DELIM$ENV{KARMA_HOME}") &&
+	(-d "$main::PATH_DELIM$ENV{KARMA_HOME}") &&
+	(-w "$main::PATH_DELIM$ENV{KARMA_HOME}")) {
+	$main::KARMA_HOME="$main::PATH_DELIM$ENV{KARMA_HOME}";
+    } elsif ((-e "$main::wd$main::PATH_DELIM$ENV{KARMA_HOME}") &&
+	     (-d "$main::wd$main::PATH_DELIM$ENV{KARMA_HOME}") &&
+	     (-w "$main::wd$main::PATH_DELIM$ENV{KARMA_HOME}")) {
+	$main::KARMA_HOME="$main::wd$main::PATH_DELIM$ENV{KARMA_HOME}";
+    }
 }
+
+debugMessage ("KARMA_HOME:$main::KARMA_HOME\n", 1);
 
 # 
 # background oneself before starting
 #
-daemonize ();
-
+# (this is handled by Win32::Process in karmactl on windows)
+#
+#if ($main::WINDOWS == 0) {
+#    daemonize ();
+#}
 
 $main::startTime = time();
 $main::currTime = $main::startTime;
@@ -159,9 +143,24 @@ $main::currTime = $main::startTime;
 #
 # set the logfile name
 #
-$main::LOG_FILE_NAME = "$main::KARMA_HOME/karma.log";
+$main::LOG_FILE_NAME = "$main::KARMA_HOME$main::PATH_DELIM" . 'karma.log';
 if (defined ($main::opt_l)) {
-    $main::LOG_FILE_NAME = "$main::opt_l";
+    if ((($main::WINDOWS == 0) && ($main::opt_l =~ /^\/.*$/)) ||
+	(($main::WINDOWS == 1) && ($main::opt_l =~ /^\w:\\.*$/))) {
+	$main::LOG_FILE_NAME = $main::opt_l;
+    } else {
+	if ($main::opt_l =~ /^\..*$/) {
+	    $main::opt_l =~ s/^\.//;
+	}
+	$main::LOG_FILE_NAME = $main::wd .
+	    $main::PATH_DELIM . $main::opt_l;
+    }
+#    $main::LOG_FILE_NAME = "$main::opt_l";
+}
+
+if ((-e $main::LOG_FILE_NAME) && 
+    (not (-w $main::LOG_FILE_NAME))) {
+    $main::LOG_FILE_NAME = '-';
 }
 
 $main::info_file = undef;
@@ -173,15 +172,7 @@ $main::info_file = undef;
 $main::logfile = new IO::File ">>$main::LOG_FILE_NAME";
 if (not (defined $main::logfile)) {
     $main::logfile = new IO::File ">>-";
-    print $main::logfile ("Cannot open logfile: $main::LOG_FILE_NAME, using STDOUT");
-}
-
-log_message_wtime ("Started karmad.\n");
-
-if ($main::USE_EMAIL_NOTIFICATION == 1) {
-    log_message ("Using EMAIL notification.\n");
-} else {
-    log_message ("Using LOGFILE notification.\n");
+    debugMessage ("Cannot open logfile: $main::LOG_FILE_NAME, using STDOUT", 1);
 }
 
 #-----------------------------------------------------------------------
@@ -272,15 +263,23 @@ $main::cBORD_COL_DARK="#003333";
 # misc page colors
 #
 
-$main::KARMA_FIFO_NAME = "$main::KARMA_HOME/.karmafifo";
-$main::PID_FILE_NAME = "$main::KARMA_HOME/.karma.pid";
+$main::KARMA_FIFO_NAME = "$main::KARMA_HOME$main::PATH_DELIM.karmafifo";
+$main::PID_FILE_NAME = "$main::KARMA_HOME$main::PATH_DELIM.karma.pid";
 
 #
 # this specifies the base location of generated karma html files
 #
-$main::KARMA_DOC_ROOT = "$main::KARMA_HOME/doc_root";
+$main::KARMA_DOC_ROOT = "$main::KARMA_HOME$main::PATH_DELIM" . 'doc_root';
 if ($main::opt_k) {
-    $main::KARMA_DOC_ROOT = $main::opt_k;
+    if ($main::opt_k =~ /^\/.*$/) {
+	$main::KARMA_DOC_ROOT = $main::opt_k;
+    } else {
+	if ($main::opt_k =~ /^\..*$/) {
+	    $main::opt_k =~ s/^\.//;
+	}
+	$main::KARMA_DOC_ROOT = $main::wd .
+	    $main::PATH_DELIM . $main::opt_k;
+    }
 }
 
 if (not (-e $main::KARMA_DOC_ROOT) ||
@@ -535,7 +534,7 @@ ORDER BY start_time";
 # more info file extentsions... actual filename will be
 # dbname.$REDOLOG_FILE for example.
 #
-$main::INDEX_FILE_NAME = "$main::KARMA_DOC_ROOT/karma.html";
+$main::INDEX_FILE_NAME = "$main::KARMA_DOC_ROOT$main::PATH_DELIM" . 'karma.html';
 
 $main::files{info}{redolog}       = "redolog.html";
 $main::files{info}{rollback}      = "rollback.html";
@@ -556,21 +555,23 @@ $main::files{info}{reperror}      = "reperror.html";
 #
 # help files
 #
-$main::files{help}{redolog}       = "redolog_help.html";
-$main::files{help}{rollback}      = "rollback_help.html";
-$main::files{help}{slowsql}       = "slowsql_help.html";
-$main::files{help}{alertlog}      = "alertlog_help.html";
-$main::files{help}{hitratios}     = "hitratios_help.html";
-$main::files{help}{extents}       = "extents_help.html";
-$main::files{help}{latch}         = "latch_help.html";
-$main::files{help}{fragmentation} = "fragmentation_help.html";
-$main::files{help}{mts}           = "mts_help.html";
-$main::files{help}{tablespace}    = "tablespace_help.html";
-$main::files{help}{os}            = "os_help.html";
-$main::files{help}{up}            = "up_help.html";
-$main::files{help}{db}            = "db_help.html";
-$main::files{help}{repqueue}      = "repqueue_help.html";
-$main::files{help}{reperror}      = "reperror_help.html";
+$main::files{help}{redolog}       = "services.html#Redologs";
+$main::files{help}{rollback}      =
+    "services.html#Rollback_Segment_Contention";
+$main::files{help}{slowsql}       = "services.html#Slow_SQL";
+$main::files{help}{alertlog}      = "services.html#Alert_Log_Errors";
+$main::files{help}{hitratios}     = "services.html#Hit_Ratios";
+$main::files{help}{extents}       = "services.html#Extents";
+$main::files{help}{latch}         = "services.html#Latch_Contention";
+$main::files{help}{fragmentation} = "services.html#Fragmentation";
+$main::files{help}{mts}           = "services.html#MTS_Multi_Threaded_Server";
+$main::files{help}{tablespace}    = "services.html#Tablespace_Quotas";
+$main::files{help}{os}            = "services.html#OS_Statistics";
+$main::files{help}{up}            = "services.html#UP_Status";
+$main::files{help}{db}            = "services.html#Initialization_Parameters";
+$main::files{help}{repqueue}      = "services.html#Deferred_Transaction_Queue";
+$main::files{help}{reperror}      =
+    "services.html#Deferred_Transaction_Error_Queue";
 
 #
 # shortened service names (no more than 5 characters)
@@ -715,7 +716,7 @@ $main::stats = undef;
 #
 #-----------------------------------------------------------------------
 sub main ();
-sub print_help ();
+sub printHelp ();
 sub getStatus ($$$);
 sub getServices ($$);
 sub getRedologStatus ($$$);
@@ -735,13 +736,14 @@ sub getReperrorStatus ($$$);
 sub getInfo ($$$);
 sub getStatusStr ($);
 sub getCurrStatus ($$);
-sub getNotifySize ($$);
+sub getEmailSize ($);
+#sub getNotifySize ($$);
 sub getNotifyMinutes ($$);
 sub getPrefGroup ($);
 sub getNotifyEmails ($$);
 sub getNotifyServices ($$);
 sub readConfig ($);
-sub showInfoPage ($$$);
+sub showInfoPage ($$$$);
 sub showKarmaTableRow ($$);
 sub showKarmaTableHeader ();
 sub showKarmaHeadMain ();
@@ -751,6 +753,7 @@ sub showInfoFoot ($$);
 sub showServiceStatus ($$);
 sub showIndexPage ($);
 sub exitKarma ();
+sub logMessageExit ($);
 sub sendEmail ($$@);
 sub setConfig ($$$$$);
 sub setConfigNotify ($$$$);
@@ -778,12 +781,15 @@ sub refreshServices;
 #
 # install signal handlers
 #
-$SIG{HUP} = \&catchHUP;         # reread config file
-$SIG{TERM} = \&catchTERM;       # normal kill, die gracefully, cleanup
-$SIG{USR1} = \&showStatus;      # user signal, return status
-$SIG{USR2} = \&refreshServices; # refresh each service, checking the db
+# (not sure at all how this is handled under windows yet)
+#
+if ($main::WINDOWS == 0) {
+    $SIG{HUP} = \&catchHUP;         # reread config file
+    $SIG{TERM} = \&catchTERM;       # normal kill, die gracefully, cleanup
+    $SIG{USR1} = \&showStatus;      # user signal, return status
+    $SIG{USR2} = \&refreshServices; # refresh each service, checking the db
                                  # appropriately
-
+}
 
 #
 # this ensures the perl will not buffer output to the logfile
@@ -800,39 +806,54 @@ $main::USE_DBI_VARS = 0;
 # read in configuration information from the 
 # conf file specified on the command line
 #
-if (($main::opt_c) &&
-    (-f "$main::KARMA_HOME/$main::opt_c") &&
-    (-r "$main::KARMA_HOME/$main::opt_c")) {
-    $main::CONF_FILE_NAME = "$main::KARMA_HOME/$main::opt_c";
+if ((defined ($main::opt_c)) &&
+    (-f "$main::KARMA_HOME$main::PATH_DELIM$main::opt_c") &&
+    (-r "$main::KARMA_HOME$main::PATH_DELIM$main::opt_c")) {
 
-#
-# try the KARMA_HOME directory...
-#
-#} elsif ((-f "$main::KARMA_HOME/karma.conf") && (-r "$main::KARMA_HOME/karma.conf")) {
-} elsif ((-f "$main::KARMA_HOME/karma.conf") && (-r "$main::KARMA_HOME/karma.conf")) {
-    $main::CONF_FILE_NAME = "$main::KARMA_HOME/karma.conf";
+    $main::CONF_FILE_NAME = "$main::KARMA_HOME$main::PATH_DELIM$main::opt_c";
+    logMessage ("Using config file: $main::CONF_FILE_NAME \n");
+
+    #
+    #  try the KARMA_HOME directory...
+    #
+
+} elsif ((-f "$main::KARMA_HOME$main::PATH_DELIM" . 'karma.conf') &&
+	 (-r "$main::KARMA_HOME$main::PATH_DELIM" . 'karma.conf')) {
+    debugMessage ("Using \"$main::KARMA_HOME$main::PATH_DELIM" . 
+		   'karma.conf' . "\" config file.\n", 1);
+    $main::CONF_FILE_NAME = "$main::KARMA_HOME$main::PATH_DELIM" .
+	'karma.conf';
+
 
 #
 # try the home directory (assume name ".karma.conf"
-#
-} elsif (( -f "$ENV{HOME}/.karma.conf") && (-r "$ENV{HOME}/.karma.conf")) {
-    $main::CONF_FILE_NAME = "$ENV{HOME}/.karma.conf";
+#  (this will be ok on Win32, $ENV{HOME} won't be defined)
+} elsif (( -f "$ENV{HOME}$main::PATH_DELIM.karma.conf") &&
+	 (-r "$ENV{HOME}$main::PATH_DELIM.karma.conf")) {
+
+    logMessage ("$main::opt_c file not found, using $ENV{HOME}$main::PATH_DELIM.karma.conf instead.\n");
+
+    $main::CONF_FILE_NAME = "$ENV{HOME}$main::PATH_DELIM.karma.conf";
 
 
 #
 # if none was specified on the command line, check
 # for /etc/karma.conf
 #
-} elsif ((-f "/etc/karma.conf") && (-r "/etc/karma.conf")) {
+} elsif (($main::WINDOWS == 0) &&
+	 (-f "/etc/karma.conf") &&
+	 (-r "/etc/karma.conf")) {
     $main::CONF_FILE_NAME = "/etc/karma.conf";
+    logMessage ("$main::opt_c file not found, using $main::CONF_FILE_NAME instead.\n");
 
 #
 # if we still haven't found the karma.conf file,
 # check the current directory
 #
-} elsif ((-f "./karma.conf") && (-r "./karma.conf")) {
-    $main::CONF_FILE_NAME = "./karma.conf";
-
+} elsif ((-f "$main::wd$main::PATH_DELIM" . 'karma.conf') &&
+	 (-r "$main::wd$main::PATH_DELIM" . 'karma.conf')) {
+    $main::CONF_FILE_NAME = "$main::wd$main::PATH_DELIM" . 'karma.conf';
+    logMessage ("$main::opt_c file not found, using $main::CONF_FILE_NAME instead.\n");
 #
 # last chance, try the DBI_USER, DBI_PASS, DBI_DSN, and use all
 # factory defaults
@@ -848,14 +869,32 @@ if (($main::opt_c) &&
 #
 } else {
 
-    print ("The karma.conf configuration file was not found.  Please\n");
-    print ("make sure the file /etc/karma.conf or ./karma.conf exists\n");
-    print ("and is readable, otherwise specify another file with -c. \n");
+    print 
+	"The karma.conf configuration file was not found.\n",
+	"Please make sure the file $main::KARMA_HOME$main::PATH_DELIM", 
+	'karma.conf', ",\n",
+	"$main::PATH_DELIM", 'etc', "$main::PATH_DELIM", 'karma.conf',
+	"exists and is readable, otherwise\n",
+	"specify another file with -c. \n";
     exit;
 }
 
-#log_message_wtime ("configfile: $main::CONF_FILE_NAME\n");
+#logMessageWTime ("configfile: $main::CONF_FILE_NAME\n");
 
+# 
+# background oneself before starting
+#
+# it's very important that this routine be called at the right
+# place, for instance, I was calling daemonize *after* readConfig
+# and perl didn't handle the $dbh connections to Oracle properly...
+# Oracle was returning ORA-3114 errors, and I was baffled...
+#
+# perl seems to pass the file handle ok though, because the logfile
+# is opened before forking, and is written to after...
+#
+if ($main::WINDOWS == 0) {
+    daemonize ();
+}
 
 #
 # changing this datastructure slowly... if all works well
@@ -875,29 +914,45 @@ if ($main::USE_DBI_VARS == 1) {
 
 
 #print ("hello, anybody home?\n");
-$main::KARMA_PID = $$;
-writePidFile ();
 
 #
 # testing... print filenames
 #
-#print ("   LOG FILE:$main::LOG_FILE_NAME\n");
-#print ("CONFIG FILE:$main::CONF_FILE_NAME\n");
-#print (" INDEX FILE:$main::INDEX_FILE_NAME\n");
-#print ("   PID FILE:$main::PID_FILE_NAME\n");
-#print ("  INFO FILE:$main::INFO_FILE_NAME\n");
-#print ("DOCROOT FILE:$main::KARMA_DOC_ROOT\n");
+if ($main::WINDOWS == 0) {
+    debugMessage ("   IS Win32:NO\n", 1);
+} else {
+    debugMessage ("   IS Win32:YES\n", 1);
+}
+debugMessage ("WORKING DIR:$main::wd\n", 1);
+debugMessage ("   LOG FILE:$main::LOG_FILE_NAME\n", 1);
+debugMessage ("CONFIG FILE:$main::CONF_FILE_NAME\n", 1);
+debugMessage (" INDEX FILE:$main::INDEX_FILE_NAME\n", 1);
+debugMessage ("   PID FILE:$main::PID_FILE_NAME\n", 1);
+#debugMessage (" INFO FILE:$main::INFO_FILE_NAME\n", 1);
+debugMessage ("DOCROOT DIR:$main::KARMA_DOC_ROOT\n", 1);
+debugMessage (" KARMA HOME:$main::KARMA_HOME\n", 1);
+
+#
+# this has to come after daemonize, otherwise we'll write
+# the wrong pid!
+#
+$main::KARMA_PID = $$;
+writePidFile ();
+
+logMessageWTime ("Started karmad.\n");
+
+if ($main::USE_EMAIL_NOTIFICATION == 1) {
+    logMessage ("Using EMAIL notification.\n");
+} else {
+    logMessage ("Using LOGFILE notification.\n");
+}
+
 
 #
 # ok, now we're ready to run
 #
 main ();
 
-#
-# safe exit... we really only ever exit via HUP signal, so we 
-# probably never reach here.
-#
-exitKarma ();
 
 #-----------------------------------------------------------------------
 #
@@ -920,26 +975,27 @@ sub main () {
     #
     # loop forever... only way to exit is via catchTERM
     #
+    #  (Thanks to Dennis <dennis@funkplanet.com> for
+    #   the suggestion to move this first call out
+    #   of the main loop.)
+    #
+    doDBChecks ($main::cFORCE_UPD);
+    $lastTime = $main::currTime;
+    
     while (1) {
-	if ($main::currTime == $main::startTime) {
-	    $main::currTime = time ();
-	    doDBChecks ($main::cFORCE_UPD);
-	    $lastTime = $main::currTime;
-	} else {
-	    $main::currTime = time ();
-	    $diffTime = 0;
-	    if ($main::currTime > $lastTime) {
-		$diffTime = $main::currTime - $lastTime;
-	    }
-
-	    if ($diffTime > $main::MIN_WAKEUP) {
-		doDBChecks ($main::cNO_FORCE);
-		$lastTime = $main::currTime;
-		$diffTime = 0;
-	    }
+	$main::currTime = time ();
+	$diffTime = 0;
+	if ($main::currTime > $lastTime) {
+	    $diffTime = $main::currTime - $lastTime;
 	}
 
-	sleep ($main::MIN_WAKEUP * 60 - $diffTime);
+	if ($diffTime > $main::MIN_WAKEUP) {
+	    doDBChecks ($main::cNO_FORCE);
+	    $lastTime = $main::currTime;
+	    $diffTime = 0;
+	}
+	
+        sleep ($main::MIN_WAKEUP * 60 - $diffTime);
     }
 }
 
@@ -952,19 +1008,25 @@ sub main () {
 sub showIndexPage ($) {
     my ($inMinutes) = @_;
 
+    debugMessage ("showIndexPage: opening IDXF:$main::INDEX_FILE_NAME\n",2);
     # 
     # ideally would like to pass this handle to the showKarmaHeadMain
     # showKarmaTableHeader etc routines, but right now it's not working
     #
     $main::index_file = new IO::File ">$main::INDEX_FILE_NAME"
-	or die "Can't open $main::INDEX_FILE_NAME:: $!";
+#	or die "Can't open $main::INDEX_FILE_NAME:: $!";
+	or logMessageExit ("Can't open $main::INDEX_FILE_NAME:: $!");
+
+
+    debugMessage ("showIndexPage: IDXF:$main::INDEX_FILE_NAME open ok.\n",2);
+
     my $tnsKey = undef;
     my $prefKey = undef;
     my $colCount = 0;
     my $i = 0;
 
     if (not (defined ($main::index_file))) {
-	log_message ("Cannot write to index file: $main::INDEX_FILE_NAME\n");
+	logMessage ("Cannot write to index file: $main::INDEX_FILE_NAME\n");
     } else {
 
 #    open (main::INDEX_FILE, ">$main::INDEX_FILE_NAME");
@@ -1039,9 +1101,9 @@ sub showServiceStatus ($$) {
 	$theStatus = $main::stats{$inType}{$inTNS}[$main::cSTATUS];
     }
 
-#    if (not ($theStatus)) {
-#	print ("Working on T: $inType TNS:$inTNS\n");
-#    }
+    if (not ($theStatus)) {
+	debugMessage ("Working on T: $inType TNS:$inTNS\n", 2);
+    }
 
     if ($theStatus == $main::cALERT_STATUS) {
 	if ($main::USE_BLINK_ALERT == 1) {
@@ -1075,9 +1137,9 @@ sub showServiceStatus ($$) {
     } else {
 	if (($main::stats{up}{$inTNS}[$main::cSTATUS] == $main::cALERT_STATUS) &&
 	    (not ($inType =~ /^up$/i))) {
-	    print $main::index_file ("<IMG SRC=\"images/$theImage\" BORDER=0 border=\"0\" ALT=\"$inTNS - DB DOWN\">\n");
+	    print $main::index_file ("<IMG SRC=\"images$main::PATH_DELIM$theImage\" BORDER=0 border=\"0\" ALT=\"$inTNS - DB DOWN\">\n");
 	} else {
-	    print $main::index_file ("<A HREF=\"info/$inTNS.$theFile\" target=\"_self\"><IMG SRC=\"images/$theImage\" BORDER=0 ALT=\"$inTNS - $inType Info\"></A>\n");
+	    print $main::index_file ("<A HREF=\"info$main::PATH_DELIM$inTNS.$theFile\" target=\"_self\"><IMG SRC=\"images$main::PATH_DELIM$theImage\" BORDER=0 ALT=\"$inTNS - $inType Info\"></A>\n");
 	}
 }
 }
@@ -1101,49 +1163,55 @@ sub getRepqueueStatus ($$$) {
 
 	my $curr_row = [];
 	my $sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare ($main::statements{repqueue});
-	my $rv = $sth->execute ();
 
-	#
-	# redolog more info table titles
-	#
-	@{$repqueueTableRef->[$repqueueRowCount]} = ("Level", "Def Tran ID",
-					     "Order", "Timestamp");
-	$repqueueRowCount = 1;
-	$curr_row = [];
-	$curr_row = $sth->fetchrow_arrayref;
-	while (defined ($curr_row->[0])) {
+	if (defined $DBI::errstr) {
+	    logMessageWTime ("getRepqueueStatus:$inTNS prepare - $DBI::errstr\n");
+	}
 
-	    
-	    @{$repqueueTableRef->[$repqueueRowCount]} = ($currStatus, $curr_row->[0],
-						 $curr_row->[1], $curr_row->[2]);
-	    
+	if (defined $sth) {
+	    my $rv = $sth->execute ();
+
+	    #
+	    # redolog more info table titles
+	    #
+	    @{$repqueueTableRef->[$repqueueRowCount]} = ("Level", "Def Tran ID",
+							 "Order", "Timestamp");
+	    $repqueueRowCount = 1;
+	    $curr_row = [];
 	    $curr_row = $sth->fetchrow_arrayref;
-	    $repqueueRowCount++;
-	}
+	    while (defined ($curr_row->[0])) {
+		
+		
+		@{$repqueueTableRef->[$repqueueRowCount]} = ($currStatus, $curr_row->[0],
+							     $curr_row->[1], $curr_row->[2]);
+		
+		$curr_row = $sth->fetchrow_arrayref;
+		$repqueueRowCount++;
+	    }
+	    
+	    
+	    #
+	    # set warning level based on number of transactions in
+	    # deftran queue
+	    #
+	    $repqueueStatus = $main::cOK_STATUS;
+	    if ($repqueueRowCount - 1 > $repqueue_threshold_alert) {
+		$repqueueStatus = $main::cALERT_STATUS;
+	    } elsif ($repqueueRowCount - 1 > $repqueue_threshold_warn) {
+		$repqueueStatus = $main::cWARNING_STATUS;
+	    }
+	    
+	    if ($sth) {
+		$sth->finish;
+	    }
 
-
-	#
-	# set warning level based on number of transactions in
-	# deftran queue
-	#
-	$repqueueStatus = $main::cOK_STATUS;
-#	print ("RowCount : $repqueueRowCount, Status:$repqueueStatus\n");
-	if ($repqueueRowCount - 1 > $repqueue_threshold_alert) {
-	    $repqueueStatus = $main::cALERT_STATUS;
-	} elsif ($repqueueRowCount - 1 > $repqueue_threshold_warn) {
-	    $repqueueStatus = $main::cWARNING_STATUS;
-	}
-#	print ("RowCount : $repqueueRowCount, Status:$repqueueStatus\n");
-#	print ("repqueue: ALERT: $repqueue_threshold_alert WARN:$repqueue_threshold_warn\n");
-
-	if ($sth) {
-	    $sth->finish;
 	}
     }
 
-    showInfoPage ($repqueueTableRef, "repqueue", $inTNS);
+    showInfoPage ($repqueueTableRef, "repqueue", $inTNS, undef);
     return $repqueueStatus;
 }
+
 
 #-----------------------------------------------------------------------
 #
@@ -1164,49 +1232,57 @@ sub getReperrorStatus ($$$) {
 
 	my $curr_row = [];
 	my $sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare ($main::statements{reperror});
-	my $rv = $sth->execute ();
 
-	#
-	# redolog more info table titles
-	#
-	@{$reperrorTableRef->[$reperrorRowCount]} = ("Level", "Def Tran ID",
-						     "Origin", "Destination", 
-						     "Timestamp", "Error");
-	$reperrorRowCount = 1;
-	$curr_row = [];
-	$curr_row = $sth->fetchrow_arrayref;
-	while (defined ($curr_row->[0])) {
+	if (defined $DBI::errstr) {
+	    logMessageWTime ("getReperrorStatus:$inTNS prepare - $DBI::errstr\n");
+	}
 
-	    @{$reperrorTableRef->[$reperrorRowCount]} = 
-		($currStatus, $curr_row->[0],
-		 $curr_row->[1], $curr_row->[2],
-		 $curr_row->[3], $curr_row->[4]);
+	if (defined $sth) {
+	    my $rv = $sth->execute ();
 	    
+	    #
+	    # redolog more info table titles
+	    #
+	    @{$reperrorTableRef->[$reperrorRowCount]} = ("Level", "Def Tran ID",
+							 "Origin", "Destination", 
+							 "Timestamp", "Error");
+	    $reperrorRowCount = 1;
+	    $curr_row = [];
 	    $curr_row = $sth->fetchrow_arrayref;
-	    $reperrorRowCount++;
-	}
+	    while (defined ($curr_row->[0])) {
+		
+		@{$reperrorTableRef->[$reperrorRowCount]} = 
+		    ($currStatus, $curr_row->[0],
+		     $curr_row->[1], $curr_row->[2],
+		     $curr_row->[3], $curr_row->[4]);
+		
+		$curr_row = $sth->fetchrow_arrayref;
+		$reperrorRowCount++;
+	    }
+	    
+	    
+	    #
+	    # set warning level based on number of transactions in
+	    # deftran queue
+	    #
+	    $reperrorStatus = $main::cOK_STATUS;
+	    if ($reperrorRowCount - 1 > $reperror_threshold_alert) {
+		$reperrorStatus = $main::cALERT_STATUS;
+	    } elsif ($reperrorRowCount - 1 > $reperror_threshold_warn) {
+		$reperrorStatus = $main::cWARNING_STATUS;
+	    }
+	    
+	    if ($sth) {
+		$sth->finish;
+	    }
 
-
-	#
-	# set warning level based on number of transactions in
-	# deftran queue
-	#
-	$reperrorStatus = $main::cOK_STATUS;
-	if ($reperrorRowCount - 1 > $reperror_threshold_alert) {
-	    $reperrorStatus = $main::cALERT_STATUS;
-	} elsif ($reperrorRowCount - 1 > $reperror_threshold_warn) {
-	    $reperrorStatus = $main::cWARNING_STATUS;
-	}
-
-	if ($sth) {
-	    $sth->finish;
 	}
     }
 
 
 
 
-    showInfoPage ($reperrorTableRef, "reperror", $inTNS);
+    showInfoPage ($reperrorTableRef, "reperror", $inTNS, undef);
     return $reperrorStatus;
 }
 
@@ -1237,70 +1313,77 @@ sub getRedologStatus ($$$) {
 	my $diff = 0;
 #	my $sth = $dbh{$inTNS}->prepare ($main::statements{redolog});
 	my $sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare ($main::statements{redolog});
-	my $rv = $sth->execute ();
 
-	#$prev_row = $sth->fetchrow_arrayref ();
+	if (defined $DBI::errstr) {
+	    logMessageWTime ("getRedologStatus:$inTNS prepare - $DBI::errstr\n");
+	}
 
-	#
-	# redolog more info table titles
-	#
-	@{$redoTableRef->[$redoRowCount]} = ("Level", "Group#",
-					     "Sequence#", "Timestamp");
-	$redoRowCount = 1;
-	$curr_row = [];
-	$currtime = 0;
-	$prevtime = 0;
-	$diff = 0;
-	$curr_row = $sth->fetchrow_arrayref;
-	while (defined ($curr_row->[0])) {
-
-
-	    $prevtime = $currtime;
-	    $currtime = $main::cDAYSECS * $curr_row->[0] + $curr_row->[1];
-	    $diff = $currtime - $prevtime;
+	if (defined $sth) {
+	    my $rv = $sth->execute;
 	    
-	    
-	    if ($diff < ($redolog_threshold_alert * 60)) {
-		$currStatus = $main::cALERT_STATUS;
-	    } elsif ($diff < ($redolog_threshold_warn * 60)) {
-		$currStatus = $main::cWARNING_STATUS;
-	    } else {
-		$currStatus = $main::cOK_STATUS;
-	    }
-	    
+	    #$prev_row = $sth->fetchrow_arrayref ();
 	    
 	    #
-	    # escalate warning/alert level if necessary
+	    # redolog more info table titles
 	    #
-	    if (($redologStatus == $main::cNO_STATUS) || 
-		($redologStatus == $main::cOK_STATUS) ||
-		($currStatus == $main::cALERT_STATUS)) {
-		$redologStatus = $currStatus;
-	    } elsif (($currStatus == $main::cALERT_STATUS) &&
-		     ($redologStatus == $main::cWARNING_STATUS)) {
-		$redologStatus = $currStatus;
-	    }
-	    
-	    
-	    
-	    @{$redoTableRef->[$redoRowCount]} = ($currStatus, $curr_row->[2],
-						 $curr_row->[3], $curr_row->[4]);
-	    
+	    @{$redoTableRef->[$redoRowCount]} = ("Level", "Group#",
+						 "Sequence#", "Timestamp");
+	    $redoRowCount = 1;
+	    $curr_row = [];
+	    $currtime = 0;
+	    $prevtime = 0;
+	    $diff = 0;
 	    $curr_row = $sth->fetchrow_arrayref;
-	    $redoRowCount++;
-	}
-	
-	if ($redoRowCount == 1) {
-	    $redologStatus = $main::cWARNING_STATUS;
-	}
-
-	if ($sth) {
-	    $sth->finish;
+	    while (defined ($curr_row->[0])) {
+		
+		
+		$prevtime = $currtime;
+		$currtime = $main::cDAYSECS * $curr_row->[0] + $curr_row->[1];
+		$diff = $currtime - $prevtime;
+		
+		
+		if ($diff < ($redolog_threshold_alert * 60)) {
+		    $currStatus = $main::cALERT_STATUS;
+		} elsif ($diff < ($redolog_threshold_warn * 60)) {
+		    $currStatus = $main::cWARNING_STATUS;
+		} else {
+		    $currStatus = $main::cOK_STATUS;
+	    }
+		
+		
+		#
+		# escalate warning/alert level if necessary
+		#
+		if (($redologStatus == $main::cNO_STATUS) || 
+		    ($redologStatus == $main::cOK_STATUS) ||
+		    ($currStatus == $main::cALERT_STATUS)) {
+		    $redologStatus = $currStatus;
+		} elsif (($currStatus == $main::cALERT_STATUS) &&
+			 ($redologStatus == $main::cWARNING_STATUS)) {
+		    $redologStatus = $currStatus;
+		}
+		
+		
+		
+		@{$redoTableRef->[$redoRowCount]} = ($currStatus, $curr_row->[2],
+						     $curr_row->[3], $curr_row->[4]);
+		
+		$curr_row = $sth->fetchrow_arrayref;
+		$redoRowCount++;
+	    }
+	    
+	    if ($redoRowCount == 1) {
+		$redologStatus = $main::cWARNING_STATUS;
+	    }
+	    
+	    if ($sth) {
+		$sth->finish;
+	    }
 	}
     }
 
 
-    showInfoPage ($redoTableRef, "redolog", $inTNS);
+    showInfoPage ($redoTableRef, "redolog", $inTNS, undef);
     return $redologStatus;
 }
 
@@ -1331,68 +1414,75 @@ sub getRollbackStatus ($$$) {
 
 #	$sth = $dbh{$inTNS}->prepare ($main::statements{rollback});
 	$sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare ($main::statements{rollback});
-	$rv = $sth->execute;
-	$gets = 0;
-	$gets_waits = 0;
-	$currStatus = $main::cNO_STATUS;
 
-	#
-	# rollback segment more info table titles
-	#
-	@{$rollbackTableRef->[0]} = ("Level", 
-				     "Name",
-				     "Status",
-				     "Gets",
-				     "Waits",
-				     "Hitratio");
-	$rollbackRowCount = 1;
-	$curr_row = $sth->fetchrow_arrayref;
-	while (defined ($curr_row->[0])) {
-	    $gets = $curr_row->[2];
-	    $gets_waits = $gets - $curr_row->[3];
-	    $currStatus = $main::cNO_STATUS;
-	    if ($gets > 0) {
-		$rollbackRatio = ($gets_waits) * 100 / $gets;
-
-		if ($rollbackRatio < $roll_threshold_alert) {
-		    $currStatus = $main::cALERT_STATUS;
-		} elsif ($rollbackRatio < $roll_threshold_warn) {
-		    $currStatus = $main::cWARNING_STATUS;
-		} else {
-		    $currStatus = $main::cOK_STATUS;
-		}
-	    }
-
-	    #
-	    # escalate warning/alert level if necessary
-	    #
-	    if (($rollbackStatus == $main::cNO_STATUS) || 
-		($rollbackStatus == $main::cOK_STATUS) ||
-		($currStatus == $main::cALERT_STATUS)) {
-		$rollbackStatus = $currStatus;
-	    } elsif (($currStatus == $main::cALERT_STATUS) &&
-		     ($rollbackStatus == $main::cWARNING_STATUS)) {
-		$rollbackStatus = $currStatus;
-	    }
-	    
-
-	    @{$rollbackTableRef->[$rollbackRowCount]} = ($currStatus, 
-							 $curr_row->[0],
-							 $curr_row->[1],
-							 $curr_row->[2],
-							 $curr_row->[3],
-							 $rollbackRatio);
-
-	    $rollbackRowCount++;
-	    $curr_row = $sth->fetchrow_arrayref;
+	if (defined $DBI::errstr) {
+	    logMessageWTime ("getRollbackStatus:$inTNS prepare - $DBI::errstr\n");
 	}
-	if ($sth) {
-	    $sth->finish;
+
+	if (defined $sth) {
+	    $rv = $sth->execute;
+	    $gets = 0;
+	    $gets_waits = 0;
+	    $currStatus = $main::cNO_STATUS;
+	    
+	    #
+	    # rollback segment more info table titles
+	    #
+	    @{$rollbackTableRef->[0]} = ("Level", 
+					 "Name",
+					 "Status",
+					 "Gets",
+					 "Waits",
+					 "Hitratio");
+	    $rollbackRowCount = 1;
+	    $curr_row = $sth->fetchrow_arrayref;
+	    while (defined ($curr_row->[0])) {
+		$gets = $curr_row->[2];
+		$gets_waits = $gets - $curr_row->[3];
+		$currStatus = $main::cNO_STATUS;
+		if ($gets > 0) {
+		    $rollbackRatio = ($gets_waits) * 100 / $gets;
+		    
+		    if ($rollbackRatio < $roll_threshold_alert) {
+			$currStatus = $main::cALERT_STATUS;
+		    } elsif ($rollbackRatio < $roll_threshold_warn) {
+			$currStatus = $main::cWARNING_STATUS;
+		    } else {
+			$currStatus = $main::cOK_STATUS;
+		    }
+		}
+		
+		#
+		# escalate warning/alert level if necessary
+		#
+		if (($rollbackStatus == $main::cNO_STATUS) || 
+		    ($rollbackStatus == $main::cOK_STATUS) ||
+		    ($currStatus == $main::cALERT_STATUS)) {
+		    $rollbackStatus = $currStatus;
+		} elsif (($currStatus == $main::cALERT_STATUS) &&
+			 ($rollbackStatus == $main::cWARNING_STATUS)) {
+		    $rollbackStatus = $currStatus;
+		}
+		
+		
+		@{$rollbackTableRef->[$rollbackRowCount]} = ($currStatus, 
+							     $curr_row->[0],
+							     $curr_row->[1],
+							     $curr_row->[2],
+							     $curr_row->[3],
+							     $rollbackRatio);
+		
+		$rollbackRowCount++;
+		$curr_row = $sth->fetchrow_arrayref;
+	    }
+	    if ($sth) {
+		$sth->finish;
+	    }
 	}
     }
 
 
-    showInfoPage ($rollbackTableRef, "rollback", $inTNS);
+    showInfoPage ($rollbackTableRef, "rollback", $inTNS, undef);
     return $rollbackStatus;
 }
 
@@ -1422,76 +1512,82 @@ sub getLatchStatus ($$$) {
 
 #	$sth = $dbh{$inTNS}->prepare ($main::statements{latch});
 	$sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare ($main::statements{latch});
-	$rv = $sth->execute;
-
-	$latchStatus = $main::cOK_STATUS;
-	$latchRatio = 0;
-	$gets = 0;
-	$misses = 0;
-	$gets_misses = 0;
-	
-        #
-	# latch more info table titles
-	#
-	@{$latchTableRef->[0]} = ("Level", 
-				  "Name",
-				  "Gets",
-				  "Misses",
-				  "Hitratio");
-	$latchRowCount = 1;
-	$curr_row = $sth->fetchrow_arrayref;
-	while (defined ($curr_row->[0])) {
-
-	    $currStatus = $main::cNO_STATUS;
-	    $gets = $curr_row->[1];
-	    $misses = $curr_row->[2];
-	    $gets_misses = $gets - $misses;
-	    if (($gets == 0) && ($misses == 0)) {
-		$latchRatio = 100;
-	    } elsif ($gets > 0) {
-		$latchRatio = ($gets_misses) * 100 / $gets;
-	    }
-	    if ($latchRatio < $latch_threshold_alert) {
-		$currStatus = $main::cALERT_STATUS;
-	    } elsif ($latchRatio < $latch_threshold_warn) {
-		$currStatus = $main::cWARNING_STATUS;
-	    } else {
-		$currStatus = $main::cOK_STATUS;
-	    }
-	    
-
-	    #
-	    # escalate warning/alert level if necessary
-	    #
-	    if (($latchStatus == $main::cNO_STATUS) || 
-		($latchStatus == $main::cOK_STATUS) ||
-		($currStatus == $main::cALERT_STATUS)) {
-		$latchStatus = $currStatus;
-	    } elsif (($currStatus == $main::cALERT_STATUS) &&
-		     ($latchStatus == $main::cWARNING_STATUS)) {
-		$latchStatus = $currStatus;
-	    }
-	    
-
-	    @{$latchTableRef->[$latchRowCount]} = ($currStatus, 
-						   $curr_row->[0],
-						   $curr_row->[1],
-						   $curr_row->[2],
-						   $latchRatio);
-
-
-	    $latchRowCount++;
-	    $curr_row = $sth->fetchrow_arrayref;
+	if (defined $DBI::errstr) {
+	    logMessageWTime ("getLatchStatus:$inTNS prepare - $DBI::errstr\n");
 	}
 
-	if ($sth) {
-	    $sth->finish;
+	if (defined $sth) {
+	    $rv = $sth->execute;
+	    
+	    $latchStatus = $main::cOK_STATUS;
+	    $latchRatio = 0;
+	    $gets = 0;
+	    $misses = 0;
+	    $gets_misses = 0;
+	    
+	    #
+	    # latch more info table titles
+	    #
+	    @{$latchTableRef->[0]} = ("Level", 
+				      "Name",
+				      "Gets",
+				      "Misses",
+				      "Hitratio");
+	    $latchRowCount = 1;
+	    $curr_row = $sth->fetchrow_arrayref;
+	    while (defined ($curr_row->[0])) {
+		
+		$currStatus = $main::cNO_STATUS;
+		$gets = $curr_row->[1];
+		$misses = $curr_row->[2];
+		$gets_misses = $gets - $misses;
+		if (($gets == 0) && ($misses == 0)) {
+		    $latchRatio = 100;
+		} elsif ($gets > 0) {
+		    $latchRatio = ($gets_misses) * 100 / $gets;
+		}
+		if ($latchRatio < $latch_threshold_alert) {
+		    $currStatus = $main::cALERT_STATUS;
+		} elsif ($latchRatio < $latch_threshold_warn) {
+		    $currStatus = $main::cWARNING_STATUS;
+		} else {
+		    $currStatus = $main::cOK_STATUS;
+		}
+		
+		
+		#
+		# escalate warning/alert level if necessary
+		#
+		if (($latchStatus == $main::cNO_STATUS) || 
+		    ($latchStatus == $main::cOK_STATUS) ||
+		    ($currStatus == $main::cALERT_STATUS)) {
+		    $latchStatus = $currStatus;
+		} elsif (($currStatus == $main::cALERT_STATUS) &&
+			 ($latchStatus == $main::cWARNING_STATUS)) {
+		    $latchStatus = $currStatus;
+		}
+		
+		
+		@{$latchTableRef->[$latchRowCount]} = ($currStatus, 
+						       $curr_row->[0],
+						       $curr_row->[1],
+						       $curr_row->[2],
+						       $latchRatio);
+		
+		
+		$latchRowCount++;
+		$curr_row = $sth->fetchrow_arrayref;
+	    }
+	    
+	    if ($sth) {
+		$sth->finish;
+	    }
 	}
 
     }
 
 
-    showInfoPage ($latchTableRef, "latch", $inTNS);
+    showInfoPage ($latchTableRef, "latch", $inTNS, undef);
     return $latchStatus;
 }
 
@@ -1527,64 +1623,68 @@ sub getTablespaceStatus ($$$) {
 
 #	$sth = $dbh{$inTNS}->prepare ($main::statements{tablespace});
 	$sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare ($main::statements{tablespace});
+	if (defined $DBI::errstr) {
+	    logMessageWTime ("getTablespaceStatus:$inTNS prepare - $DBI::errstr\n");
+	}
 	$sthAuto = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare 
 	    ("SELECT autoextensible FROM dba_data_files WHERE tablespace_name = ?");
-	if (defined ($DBI::errstr))  {
-	    log_message_wtime ("$DBI::errstr\n");
+	if (defined $DBI::errstr) {
+	    logMessageWTime ("getTablespaceStatus:$inTNS prepare - $DBI::errstr\n");
 	}
-	$rv = $sth->execute;
-	$tablespaceStatus = $main::cNO_STATUS;
-	$currStatus = $main::cNO_STATUS;
 
-        #
-	# latch more info table titles
-	#
-	@{$tablespaceTableRef->[0]} = ("Level", 
-				       "Name",
-				       "Used (K)",
-				       "Total (K)",
-				       "% Used",
-                                       "Auto");
-	$tablespaceRowCount = 1;
-	$curr_row = $sth->fetchrow_arrayref;
-	while (defined ($curr_row->[0])) {
-
+	if (defined $sth) {
+	    $rv = $sth->execute;
+	    $tablespaceStatus = $main::cNO_STATUS;
 	    $currStatus = $main::cNO_STATUS;
-
-	    $pctused = 0;
-	    $total_size = $curr_row->[1];
-	    $used_size = $curr_row->[2];
-	    if (not defined ($used_size)) {
-		$used_size = 0;
-	    }
 	    
-	    if ($total_size > 0) {
-		$pctused = 100 * $used_size / $total_size;
-		#print ("T:$total_size U:$used_size P:$pctused\n");
-	    }
-
 	    #
-	    # check the tablespace for autoextend on *ANY* datafile
+	    # latch more info table titles
 	    #
-	    $autoextend = "NO";
-	    $rv = $sthAuto->execute ($curr_row->[0]);
-	    $auto_row = $sthAuto->fetchrow_arrayref;
-	    while (defined ($auto_row->[0])) {
-		if ($auto_row->[0] =~ /^YES$/) {
-		    $autoextend = "YES";
+	    @{$tablespaceTableRef->[0]} = ("Level", 
+					   "Name",
+					   "Used (K)",
+					   "Total (K)",
+					   "% Used",
+					   "Auto");
+	    $tablespaceRowCount = 1;
+	    $curr_row = $sth->fetchrow_arrayref;
+	    while (defined ($curr_row->[0])) {
+		
+		$currStatus = $main::cNO_STATUS;
+		
+		$pctused = 0;
+		$total_size = $curr_row->[1];
+		$used_size = $curr_row->[2];
+		if (not defined ($used_size)) {
+		    $used_size = 0;
 		}
+		
+		if ($total_size > 0) {
+		    $pctused = 100 * $used_size / $total_size;
+		}
+		
+		#
+		# check the tablespace for autoextend on *ANY* datafile
+		#
+		$autoextend = "NO";
+		$rv = $sthAuto->execute ($curr_row->[0]);
 		$auto_row = $sthAuto->fetchrow_arrayref;
-	    }
-
-	    #
-	    # if data file is in autoextend mode, just leave it at
-	    # no_status.  It's too tough to decide anything else.
-	    # If we were going to check maxbytes, we'd also have to
-	    # check to os, because this could be (a) greater than
-	    # the max datafile size in this OS, and (b) greater
-	    # than the amount of disk space left on the device
-	    # 
-#	    print ("HERE HERE!\n");
+		while (defined ($auto_row->[0])) {
+		    if ($auto_row->[0] =~ /^YES$/) {
+			$autoextend = "YES";
+		    }
+		    $auto_row = $sthAuto->fetchrow_arrayref;
+		}
+		
+		#
+		# if data file is in autoextend mode, just leave it at
+		# no_status.  It's too tough to decide anything else.
+		# If we were going to check maxbytes, we'd also have to
+		# check to os, because this could be (a) greater than
+		# the max datafile size in this OS, and (b) greater
+		# than the amount of disk space left on the device
+		# 
+		
 #	    if (not ($curr_row->[3] =~ /^YES$/)) {
 		if ($pctused > $tablespace_threshold_alert) {
 		    $currStatus = $main::cALERT_STATUS;
@@ -1594,40 +1694,41 @@ sub getTablespaceStatus ($$$) {
 		    $currStatus = $main::cOK_STATUS;
 		}
 #	    }
-
-	    #
-	    # escalate warning/alert level if necessary
-	    #
-	    if (($tablespaceStatus == $main::cNO_STATUS) || 
-		($tablespaceStatus == $main::cOK_STATUS) ||
-		($currStatus == $main::cALERT_STATUS)) {
-		$tablespaceStatus = $currStatus;
-	    } elsif (($currStatus == $main::cALERT_STATUS) &&
-		     ($tablespaceStatus == $main::cWARNING_STATUS)) {
-		$tablespaceStatus = $currStatus;
-	    }
+		
+		#
+		# escalate warning/alert level if necessary
+		#
+		if (($tablespaceStatus == $main::cNO_STATUS) || 
+		    ($tablespaceStatus == $main::cOK_STATUS) ||
+		    ($currStatus == $main::cALERT_STATUS)) {
+		    $tablespaceStatus = $currStatus;
+		} elsif (($currStatus == $main::cALERT_STATUS) &&
+			 ($tablespaceStatus == $main::cWARNING_STATUS)) {
+		    $tablespaceStatus = $currStatus;
+		}
 	    
-
-#	    print ("C:$currStatus N:$curr_row->[0] U:$used_size T:$total_size PCT:$pctused\n");
-	    @{$tablespaceTableRef->[$tablespaceRowCount]} = 
-		($currStatus, 
-		 $curr_row->[0],
-		 $total_size / 1024,
-		 $used_size / 1024,
-		 $pctused,
-		 $autoextend);
-
-
-	    $tablespaceRowCount++;
-	    $curr_row = $sth->fetchrow_arrayref;
-
-	}
-	if ($sth) {
-	    $sth->finish;
+		
+		
+		@{$tablespaceTableRef->[$tablespaceRowCount]} = 
+		    ($currStatus, 
+		     $curr_row->[0],
+		     $total_size / 1024,
+		     $used_size / 1024,
+		     $pctused,
+		     $autoextend);
+		
+		
+		$tablespaceRowCount++;
+		$curr_row = $sth->fetchrow_arrayref;
+		
+	    }
+	    if ($sth) {
+		$sth->finish;
+	    }
 	}
     }
 
-    showInfoPage ($tablespaceTableRef, "tablespace", $inTNS);
+    showInfoPage ($tablespaceTableRef, "tablespace", $inTNS, undef);
     return $tablespaceStatus;
 }
 
@@ -1666,81 +1767,87 @@ sub getSlowsqlStatus ($$$) {
 #	$sth = $dbh{$inTNS}->prepare ($main::statements{slowsql});
 	$sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare ($main::statements{slowsql});
 
+	if (defined $DBI::errstr)  {
+	    logMessageWTime ("getSlowsqlStatus: prepare - $DBI::errstr\n");
+	}
+
 	#
 	# include all sql statements within 2 times the
 	# warning level
 	#
 #	$rv = $sth->execute ($slowsql_threshold_warn * 2);
-	$rv = $sth->execute ();
 
-	$currStatus = $main::cNO_STATUS;
-
-        #
-	# latch more info table titles
-	#
-	@{$slowsqlTableRef->[0]} = ("Level", 
-				    "Disk I/O",
-				    "Query Text");
-	$slowsqlRowCount = 1;
-	$curr_row = $sth->fetchrow_arrayref;
-	while ($curr_row->[0]) {
-
-	    $disk_reads = $curr_row->[0];
-	    $executions = $curr_row->[1];
-	    if ($executions > 0) {
-		$read_execs = $disk_reads / $executions;
-	    } else {
-		$read_execs = $disk_reads;
-	    }
-
+	if (defined $sth) {
+	    $rv = $sth->execute ();
+	    
+	    $currStatus = $main::cNO_STATUS;
+	    
 	    #
-	    # default to ok status, if we find no rows
-	    # to display at all
+	    # latch more info table titles
 	    #
-	    if ($slowsqlStatus == $main::cNO_STATUS) {
-		$currStatus = $main::cOK_STATUS;
-	    }
-
-	    if ($read_execs > (2 * $slowsql_threshold_warn)) {
-
-		if ($read_execs < $slowsql_threshold_alert) {
-		    $currStatus = $main::cALERT_STATUS;
-		} elsif ($read_execs < $slowsql_threshold_warn) {
-		    $currStatus = $main::cWARNING_STATUS;
+	    @{$slowsqlTableRef->[0]} = ("Level", 
+					"Disk I/O",
+					"Query Text");
+	    $slowsqlRowCount = 1;
+	    $curr_row = $sth->fetchrow_arrayref;
+	    while ($curr_row->[0]) {
+		
+		$disk_reads = $curr_row->[0];
+		$executions = $curr_row->[1];
+		if ($executions > 0) {
+		    $read_execs = $disk_reads / $executions;
 		} else {
+		    $read_execs = $disk_reads;
+		}
+		
+		#
+		# default to ok status, if we find no rows
+		# to display at all
+		#
+		if ($slowsqlStatus == $main::cNO_STATUS) {
 		    $currStatus = $main::cOK_STATUS;
 		}
-
-	        # 
-	        # escalate warning/alert level if necessary
-	        #
-		if (($slowsqlStatus == $main::cNO_STATUS) || 
-		    ($slowsqlStatus == $main::cOK_STATUS) ||
-		    ($currStatus == $main::cALERT_STATUS)) {
-		    $slowsqlStatus = $currStatus;
-		} elsif (($currStatus == $main::cALERT_STATUS) &&
-			 ($slowsqlStatus == $main::cWARNING_STATUS)) {
-		    $slowsqlStatus = $currStatus;
+		
+		if ($read_execs > (2 * $slowsql_threshold_warn)) {
+		    
+		    if ($read_execs < $slowsql_threshold_alert) {
+			$currStatus = $main::cALERT_STATUS;
+		    } elsif ($read_execs < $slowsql_threshold_warn) {
+			$currStatus = $main::cWARNING_STATUS;
+		    } else {
+			$currStatus = $main::cOK_STATUS;
+		    }
+		    
+		    # 
+		    # escalate warning/alert level if necessary
+		    #
+		    if (($slowsqlStatus == $main::cNO_STATUS) || 
+			($slowsqlStatus == $main::cOK_STATUS) ||
+			($currStatus == $main::cALERT_STATUS)) {
+			$slowsqlStatus = $currStatus;
+		    } elsif (($currStatus == $main::cALERT_STATUS) &&
+			     ($slowsqlStatus == $main::cWARNING_STATUS)) {
+			$slowsqlStatus = $currStatus;
+		    }
+		    
+		    
+		    @{$slowsqlTableRef->[$slowsqlRowCount]} = 
+			($currStatus, 
+			 $read_execs,
+			 $curr_row->[2]);
+		    
 		}
-		
-		
-		@{$slowsqlTableRef->[$slowsqlRowCount]} = 
-		    ($currStatus, 
-		     $read_execs,
-		     $curr_row->[2]);
+		$slowsqlRowCount++;
+		$curr_row = $sth->fetchrow_arrayref;
 		
 	    }
-	    $slowsqlRowCount++;
-	    $curr_row = $sth->fetchrow_arrayref;
-
+	    
+	    if ($sth) {
+		$sth->finish;
+	    }
 	}
-
-	if ($sth) {
-	    $sth->finish;
-	}
-	
         # build more info page
-	showInfoPage ($slowsqlTableRef, "slowsql", $inTNS);
+	showInfoPage ($slowsqlTableRef, "slowsql", $inTNS, undef);
 
     }
 
@@ -1770,97 +1877,98 @@ sub getAlertlogStatus ($$$) {
 
 #    $sth = $dbh{$inTNS}->prepare ("SELECT table_name FROM user_tables WHERE table_name = \'KARMA_ALERTLOG_ERRORS\'");
     my $sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare ("SELECT table_name FROM user_tables WHERE table_name = \'KARMA_ALERTLOG_ERRORS\'");
-    my $rv = $sth->execute;
-    my $row_ref = $sth->fetchrow_arrayref;
-    my $curr_row = undef;
 
-    # 
-    # to fix the "Database or Listener DOWN!" messaage, which shouldn't come
-    # up if the KARMA_* tables are missing... obviously
-    #
-    @{$alertlogTableRef->[0]} = ("Level",
-				 "Facility",
-				 "Error",
-				 "Time",
-				 "Error Text");
-    
-    $alertlogRowCount = 1;
+    if (defined $DBI::errstr)  {
+	logMessageWTime ("getAlertlogStatus: prepare - $DBI::errstr\n");
+    }
 
-#    print ("Were in getAlertlogStatus...\n");
-
-    if (defined ($row_ref->[0])) {
-
-#	print ("We have alertlog rows...\n");
-
-	if ($sth) {
-	    $sth->finish;
-	}
-
-#	$sth = $dbh{$inTNS}->prepare ($main::statements{alertlog});
-	$sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare ($main::statements{alertlog});
-	$rv = $sth->execute;
-
-#	@{$alertlogTableRef->[0]} = ("Level",
-#				     "Facility",
-#				     "Error",
-#				     "Time",
-#				     "Error Text");
-
-	$currStatus = $main::cOK_STATUS;
-	$alertlogStatus = $main::cOK_STATUS;
-
-#	$alertlogRowCount = 1;
-	$curr_row = $sth->fetchrow_arrayref;
-
-
-	while (defined ($curr_row->[0])) {
-
-	    $currStatus = $main::cOK_STATUS;
-
-
-#	    print ("We have rows, alertlog inside ORA check...\n");
-
-	    if (($curr_row->[0] =~ /ORA/) && 
-		(($curr_row->[1] == 600) || ($curr_row->[1] == 7445))) {
-		$currStatus = $main::cALERT_STATUS;
-	    } else {
-		$currStatus = $main::cWARNING_STATUS;
-	    }
-		
-	    # 
-	    # escalate warning/alert level if necessary
-            #
-	    if (($alertlogStatus == $main::cNO_STATUS) || 
-		($alertlogStatus == $main::cOK_STATUS) ||
-		($currStatus == $main::cALERT_STATUS)) {
-		$alertlogStatus = $currStatus;
-	    } elsif (($currStatus == $main::cALERT_STATUS) &&
-		     ($alertlogStatus == $main::cWARNING_STATUS)) {
-		$alertlogStatus = $currStatus;
-	    }
-	    
-	    
-	    @{$alertlogTableRef->[$alertlogRowCount]} = 
-		($currStatus, 
-		 $curr_row->[0],
-		 $curr_row->[1],
-		 $curr_row->[2],
-		 $curr_row->[3]);
-	    
-	    $alertlogRowCount++;
-	    $curr_row = $sth->fetchrow_arrayref;
+    if (defined $sth) {
+	my $rv = $sth->execute;
+	my $row_ref = $sth->fetchrow_arrayref;
+	my $curr_row = undef;
 	
-
+	# 
+	# to fix the "Database or Listener DOWN!" messaage, which shouldn't come
+	# up if the KARMA_* tables are missing... obviously
+	#
+	@{$alertlogTableRef->[0]} = ("Level",
+				     "Facility",
+				     "Error",
+				     "Time",
+				     "Error Text");
+	
+	$alertlogRowCount = 1;
+	
+	if (defined ($row_ref->[0])) {
+	    
+	    if ($sth) {
+		$sth->finish;
+	    }
+	    
+#	$sth = $dbh{$inTNS}->prepare ($main::statements{alertlog});
+	    $sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare ($main::statements{alertlog});
+	    
+	    if (defined $DBI::errstr)  {
+		logMessageWTime ("getAlertlogStatus: prepare - $DBI::errstr\n");
+	    }
+	
+	    if (defined $sth) {
+		$rv = $sth->execute;
+		
+		$currStatus = $main::cOK_STATUS;
+		$alertlogStatus = $main::cOK_STATUS;
+		
+#	$alertlogRowCount = 1;
+		$curr_row = $sth->fetchrow_arrayref;
+		
+		
+		while (defined ($curr_row->[0])) {
+		    
+		    $currStatus = $main::cOK_STATUS;
+		    
+		    
+		    if (($curr_row->[0] =~ /ORA/) && 
+			(($curr_row->[1] == 600) || ($curr_row->[1] == 7445))) {
+			$currStatus = $main::cALERT_STATUS;
+		    } else {
+			$currStatus = $main::cWARNING_STATUS;
+		    }
+		    
+		    # 
+		    # escalate warning/alert level if necessary
+		    #
+		    if (($alertlogStatus == $main::cNO_STATUS) || 
+			($alertlogStatus == $main::cOK_STATUS) ||
+			($currStatus == $main::cALERT_STATUS)) {
+			$alertlogStatus = $currStatus;
+		    } elsif (($currStatus == $main::cALERT_STATUS) &&
+			     ($alertlogStatus == $main::cWARNING_STATUS)) {
+			$alertlogStatus = $currStatus;
+		    }
+		    
+		    
+		    @{$alertlogTableRef->[$alertlogRowCount]} = 
+			($currStatus, 
+			 $curr_row->[0],
+			 $curr_row->[1],
+			 $curr_row->[2],
+			 $curr_row->[3]);
+		    
+		    $alertlogRowCount++;
+		    $curr_row = $sth->fetchrow_arrayref;
+		    
+		    
+		}
+		
+	    }
+	    
+	    if ($sth) {
+		$sth->finish;
+	    }
 	}
-
     }
 
-    if ($sth) {
-	$sth->finish;
-    }
-
-#    print ("We found $alertlogRowCount rows for $inTNS...\n");
-    showInfoPage ($alertlogTableRef, "alertlog", $inTNS);
+    showInfoPage ($alertlogTableRef, "alertlog", $inTNS, undef);
 
     return $alertlogStatus;
 
@@ -1890,87 +1998,93 @@ sub getHitratiosStatus ($$$) {
 
     $hitratiosTableRef = [()];
     my $sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare ($main::statements{hitratios});
-    my $rv = $sth->execute;
 
-    @{$hitratiosTableRef->[0]} = ("Level",
-				 "Consistent Gets",
-				 "DB Block Gets",
-				 "Physical Reads",
-				 "Hit Ratio");
-    
-    $currStatus = $main::cNO_STATUS;
-    $consistent_gets = undef;
-    $physical_reads = undef;
-    $db_block_gets = undef;
+    if (defined $DBI::errstr)  {
+	logMessageWTime ("getHitratiosStatus: prepare - $DBI::errstr\n");
+    }
 
-    $hitratiosRowCount = 1;
-    $hitratiosRow = $sth->fetchrow_arrayref;
-
-    while (defined ($hitratiosRow->[0])) {
-
-	if ($hitratiosRow->[0] =~ /consistent gets/) {
-	    $consistent_gets = $hitratiosRow->[1];
-	} elsif ($hitratiosRow->[0] =~ /physical reads/) {
-	    $physical_reads = $hitratiosRow->[1];
-	} elsif ($hitratiosRow->[0] =~ /db block gets/) {
-	    $db_block_gets = $hitratiosRow->[1];
-	}
-
-
-	$currStatus = $main::cOK_STATUS;
-
-	if (defined ($consistent_gets) && 
-	    defined ($physical_reads) && 
-	    defined ($db_block_gets)) {
-
-	    $mem_gets = $consistent_gets + $db_block_gets;
+    if (defined $sth) {
+	my $rv = $sth->execute;
 	
-	    if ($mem_gets <= 0) {
-		$currStatus = $main::cALERT_STATUS;
-	    } else {
-		$hitratio = (($mem_gets - $physical_reads) / $mem_gets) * 100; 
-
-		if ($hitratio < $hitratios_threshold_alert) {
-		    $currStatus = $main::cALERT_STATUS;
-		} elsif ($hitratio < $hitratios_threshold_warn) {
-		    $currStatus = $main::cWARNING_STATUS;
-		} else {
-		    $currStatus = $main::cOK_STATUS;
-		}
-	    }		
-	    
-	    # 
-	    # escalate warning/alert level if necessary
-            #
-	    if (($hitratiosStatus == $main::cNO_STATUS) || 
-		($hitratiosStatus == $main::cOK_STATUS) ||
-		($currStatus == $main::cALERT_STATUS)) {
-		$hitratiosStatus = $currStatus;
-	    } elsif (($currStatus == $main::cALERT_STATUS) &&
-		     ($hitratiosStatus == $main::cWARNING_STATUS)) {
-		$hitratiosStatus = $currStatus;
-	    }
-
-	    
-	    @{$hitratiosTableRef->[$hitratiosRowCount]} = 
-		($currStatus, 
-		 $consistent_gets,
-		 $db_block_gets,
-		 $physical_reads,
-		 $hitratio);
-
-	    $hitratiosRowCount++;
-	}
-
+	@{$hitratiosTableRef->[0]} = ("Level",
+				      "Consistent Gets",
+				      "DB Block Gets",
+				      "Physical Reads",
+				      "Hit Ratio");
+	
+	$currStatus = $main::cNO_STATUS;
+	$consistent_gets = undef;
+	$physical_reads = undef;
+	$db_block_gets = undef;
+	
+	$hitratiosRowCount = 1;
 	$hitratiosRow = $sth->fetchrow_arrayref;
-
+	
+	while (defined ($hitratiosRow->[0])) {
+	    
+	    if ($hitratiosRow->[0] =~ /consistent gets/) {
+		$consistent_gets = $hitratiosRow->[1];
+	    } elsif ($hitratiosRow->[0] =~ /physical reads/) {
+		$physical_reads = $hitratiosRow->[1];
+	    } elsif ($hitratiosRow->[0] =~ /db block gets/) {
+		$db_block_gets = $hitratiosRow->[1];
+	    }
+	    
+	    
+	    $currStatus = $main::cOK_STATUS;
+	    
+	    if (defined ($consistent_gets) && 
+		defined ($physical_reads) && 
+		defined ($db_block_gets)) {
+		
+		$mem_gets = $consistent_gets + $db_block_gets;
+		
+		if ($mem_gets <= 0) {
+		    $currStatus = $main::cALERT_STATUS;
+		} else {
+		    $hitratio = (($mem_gets - $physical_reads) / $mem_gets) * 100; 
+		    
+		    if ($hitratio < $hitratios_threshold_alert) {
+			$currStatus = $main::cALERT_STATUS;
+		    } elsif ($hitratio < $hitratios_threshold_warn) {
+			$currStatus = $main::cWARNING_STATUS;
+		    } else {
+			$currStatus = $main::cOK_STATUS;
+		    }
+		}		
+		
+		# 
+		# escalate warning/alert level if necessary
+		#
+		if (($hitratiosStatus == $main::cNO_STATUS) || 
+		    ($hitratiosStatus == $main::cOK_STATUS) ||
+		    ($currStatus == $main::cALERT_STATUS)) {
+		    $hitratiosStatus = $currStatus;
+		} elsif (($currStatus == $main::cALERT_STATUS) &&
+			 ($hitratiosStatus == $main::cWARNING_STATUS)) {
+		    $hitratiosStatus = $currStatus;
+		}
+		
+		
+		@{$hitratiosTableRef->[$hitratiosRowCount]} = 
+		    ($currStatus, 
+		     $consistent_gets,
+		     $db_block_gets,
+		     $physical_reads,
+		     $hitratio);
+		
+		$hitratiosRowCount++;
+	    }
+	    
+	    $hitratiosRow = $sth->fetchrow_arrayref;
+	    
+	}
+	
+	if ($sth) {
+	    $sth->finish;
+	}
     }
-
-    if ($sth) {
-	$sth->finish;
-    }
-
-    showInfoPage ($hitratiosTableRef, "hitratios", $inTNS);
+    showInfoPage ($hitratiosTableRef, "hitratios", $inTNS, undef);
     return $hitratiosStatus;
 
 }
@@ -2007,28 +2121,34 @@ sub getFragmentationStatus ($$$) {
     my $db_block_size = 0;
     my $db_file_multiblock_read_count = 0;
     my $fragmentationRowCount = 0;
-
+    my $rv = undef;
+    my $array_ref = undef;
 
     my $sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare ("SELECT name, value FROM v\$parameter WHERE name IN ('db_block_size', 'db_file_multiblock_read_count')");
-    my $rv = $sth->execute;
 
-    my $array_ref = $sth->fetchrow_arrayref;
-    while (defined ($array_ref->[0])) {
+    if (defined $DBI::errstr)  {
+	logMessageWTime ("getFragmentationStatus: prepare - $DBI::errstr\n");
+    }
 
-
-	if ($array_ref->[0] =~ /db_block_size/) {
-	    $db_block_size = $array_ref->[1];
-	} elsif ($array_ref->[0] =~ /db_file_multiblock_read_count/) {
-	    $db_file_multiblock_read_count = $array_ref->[1];
-	}
-
-
+    if (defined $sth) {
+	$rv = $sth->execute;
 	$array_ref = $sth->fetchrow_arrayref;
+	while (defined ($array_ref->[0])) {
+	    
+	    
+	    if ($array_ref->[0] =~ /db_block_size/) {
+		$db_block_size = $array_ref->[1];
+	    } elsif ($array_ref->[0] =~ /db_file_multiblock_read_count/) {
+		$db_file_multiblock_read_count = $array_ref->[1];
+	    }
+	    
+	    
+	    $array_ref = $sth->fetchrow_arrayref;
+	}
+	if ($sth) {
+	    $sth->finish;
+	}
     }
-    if ($sth) {
-	$sth->finish;
-    }
-
     #
     #
     #
@@ -2041,128 +2161,139 @@ sub getFragmentationStatus ($$$) {
 
 
 	$sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare ($main::statements{fragmentation});
-	$rv = $sth->execute;
-	$array_ref = $sth->fetchrow_arrayref;
 
-	if (defined ($array_ref->[0])) {
-	    $fragmentationStatus = $main::cOK_STATUS;
+	if (defined $DBI::errstr)  {
+	    logMessageWTime ("getFragmentationStus: prepare - $DBI::errstr\n");
 	}
 
-	@{$fragmentationTableRef->[0]} = ("Level",
-					  "Type",
-					  "Name",
-					  "Initial",
-					  "Next",
-					  "% Increase");
-	
-	$currStatus = $main::cNO_STATUS;
-	$fragmentationRowCount = 1;
-	while (defined ($array_ref->[0])) {
-	    
-	    #
-	    # store the tablespace data for later
-	    # 
-	    # This is the size we want all our initial and
-	    # next extents to be
-	    #
-	    $fragmentationData{$array_ref->[0]} = $array_ref->[1];
-
-
-	    #
-	    # right now we're warning if any of our tablespaces have a 
-	    # initial or next extent which is not a multiple of our
-	    # db_block_size * db_file_multiblock_read_count or if
-	    # they have a % increase which is non-zero.
-	    #
-	    if (($array_ref->[1] % $block_multiple != 0) || 
-		($array_ref->[2] % $block_multiple != 0) ||
-		($array_ref->[3] != 0)) {
-#		print ("I:$array_ref->[1] N:$array_ref->[2] M:$block_multiple\n");
-		$currStatus = $main::cWARNING_STATUS;
-
-	    #
-	    # otherwise ok status
-            #
-	    } else {
-		$currStatus = $main::cOK_STATUS;
-	    }
-
-	    
-	    # 
-	    # escalate warning/alert level if necessary
-            #
-	    if (($fragmentationStatus == $main::cNO_STATUS) || 
-		($fragmentationStatus == $main::cOK_STATUS) ||
-		($currStatus == $main::cALERT_STATUS)) {
-		$fragmentationStatus = $currStatus;
-	    } elsif (($currStatus == $main::cALERT_STATUS) &&
-		     ($fragmentationStatus == $main::cWARNING_STATUS)) {
-		$fragmentationStatus = $currStatus;
-	    }
-
-	    
-	    @{$fragmentationTableRef->[$fragmentationRowCount]} = 
-		($currStatus, 
-		 "Tablespace",
-		 $array_ref->[0],
-		 $array_ref->[1],
-		 $array_ref->[2],
-		 $array_ref->[3]);
-
-
-
-	    $fragmentationRowCount++;
-
+	if (defined $sth) {
+	    $rv = $sth->execute;
 	    $array_ref = $sth->fetchrow_arrayref;
+	    
+	    if (defined ($array_ref->[0])) {
+		$fragmentationStatus = $main::cOK_STATUS;
+	    }
+	    
+	    @{$fragmentationTableRef->[0]} = ("Level",
+					      "Type",
+					      "Name",
+					      "Initial",
+					      "Next",
+					      "% Increase");
+	    
+	    $currStatus = $main::cNO_STATUS;
+	    $fragmentationRowCount = 1;
+	    while (defined ($array_ref->[0])) {
+		
+		#
+		# store the tablespace data for later
+		# 
+		# This is the size we want all our initial and
+		# next extents to be
+		#
+		$fragmentationData{$array_ref->[0]} = $array_ref->[1];
+		
+		
+		#
+		# right now we're warning if any of our tablespaces have a 
+		# initial or next extent which is not a multiple of our
+		# db_block_size * db_file_multiblock_read_count or if
+		# they have a % increase which is non-zero.
+		#
+		if (($array_ref->[1] % $block_multiple != 0) || 
+		    ($array_ref->[2] % $block_multiple != 0) ||
+		    ($array_ref->[3] != 0)) {
+		    $currStatus = $main::cWARNING_STATUS;
+		    
+		    #
+		    # otherwise ok status
+		    #
+		} else {
+		    $currStatus = $main::cOK_STATUS;
+		}
+		
+		
+		# 
+		# escalate warning/alert level if necessary
+		#
+		if (($fragmentationStatus == $main::cNO_STATUS) || 
+		    ($fragmentationStatus == $main::cOK_STATUS) ||
+		    ($currStatus == $main::cALERT_STATUS)) {
+		    $fragmentationStatus = $currStatus;
+		} elsif (($currStatus == $main::cALERT_STATUS) &&
+			 ($fragmentationStatus == $main::cWARNING_STATUS)) {
+		    $fragmentationStatus = $currStatus;
+		}
+		
+		
+		@{$fragmentationTableRef->[$fragmentationRowCount]} = 
+		    ($currStatus, 
+		     "Tablespace",
+		     $array_ref->[0],
+		     $array_ref->[1],
+		     $array_ref->[2],
+		     $array_ref->[3]);
+		
+		$fragmentationRowCount++;
+		$array_ref = $sth->fetchrow_arrayref;
+	    }
+	    
+	    if ($sth) {
+		$sth->finish;
+	    }
+	    
 	}
-
-	if ($sth) {
-	    $sth->finish;
-	}
-
-
 	my $astatement = "SELECT owner, segment_name, segment_type, tablespace_name, initial_extent, next_extent, pct_increase FROM dba_segments WHERE owner NOT IN ('SYS', 'SYSTEM')";
 	$sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare ($astatement);
-	$rv = $sth->execute;
-
-	$array_ref = $sth->fetchrow_arrayref;
-	while ($array_ref->[0]) {
-
-	    if (($array_ref->[4] != $fragmentationData{$array_ref->[3]}) ||
-		($array_ref->[5] != $fragmentationData{$array_ref->[3]})) {
-		$currStatus = $main::cALERT_STATUS;
-	    } else {
-		$currStatus = $main::cOK_STATUS;
-	    }
-	    
-	    # 
-	    # escalate warning/alert level if necessary
-            #
-	    if (($fragmentationStatus == $main::cNO_STATUS) || 
-		($fragmentationStatus == $main::cOK_STATUS) ||
-		($currStatus == $main::cALERT_STATUS)) {
-		$fragmentationStatus = $currStatus;
-	    } elsif (($currStatus == $main::cALERT_STATUS) &&
-		     ($fragmentationStatus == $main::cWARNING_STATUS)) {
-		$fragmentationStatus = $currStatus;
-	    }
-
-	    
-	    @{$fragmentationTableRef->[$fragmentationRowCount]} = 
-		($currStatus, 
-		 $array_ref->[2],
-		 "$array_ref->[0].$array_ref->[1]",
-		 $array_ref->[4],
-		 $array_ref->[5],
-		 $array_ref->[6]);
-
-	    $fragmentationRowCount++;
-	    $array_ref = $sth->fetchrow_arrayref;
+	if (defined $DBI::errstr)  {
+	    logMessageWTime ("getFragmentationStus: prepare - $DBI::errstr\n");
 	}
 
+	if (defined $sth) {
+	    $rv = $sth->execute;
+	    
+	    $array_ref = $sth->fetchrow_arrayref;
+	    while ($array_ref->[0]) {
+		
+		if (($array_ref->[4] != $fragmentationData{$array_ref->[3]}) ||
+		    ($array_ref->[5] != $fragmentationData{$array_ref->[3]})) {
+		    $currStatus = $main::cALERT_STATUS;
+		} else {
+		    $currStatus = $main::cOK_STATUS;
+		}
+		
+		# 
+		# escalate warning/alert level if necessary
+		#
+		if (($fragmentationStatus == $main::cNO_STATUS) || 
+		    ($fragmentationStatus == $main::cOK_STATUS) ||
+		    ($currStatus == $main::cALERT_STATUS)) {
+		    $fragmentationStatus = $currStatus;
+		} elsif (($currStatus == $main::cALERT_STATUS) &&
+			 ($fragmentationStatus == $main::cWARNING_STATUS)) {
+		    $fragmentationStatus = $currStatus;
+		}
+		
+		
+		@{$fragmentationTableRef->[$fragmentationRowCount]} = 
+		    ($currStatus, 
+		     $array_ref->[2],
+		     "$array_ref->[0].$array_ref->[1]",
+		     $array_ref->[4],
+		     $array_ref->[5],
+		     $array_ref->[6]);
+		
+		$fragmentationRowCount++;
+		$array_ref = $sth->fetchrow_arrayref;
+	    }
+	    
+	    if (defined $sth) {
+		$sth->finish;
+	    }
+	}
     }
 
-    showInfoPage ($fragmentationTableRef, "fragmentation", $inTNS);
+    showInfoPage ($fragmentationTableRef, "fragmentation", $inTNS, undef);
     return $fragmentationStatus;
 
 }
@@ -2183,80 +2314,87 @@ sub getOSStatus ($$$) {
 
 #    $sth = $dbh{$inTNS}->prepare ("SELECT table_name FROM user_tables WHERE table_name = \'KARMA_OS_STATS\'");
     my $sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare ("SELECT table_name FROM user_tables WHERE table_name = \'KARMA_OS_STATS\'");
-    my $rv = $sth->execute;
-    $curr_row = $sth->fetchrow_arrayref;
 
-    #
-    # display one row regardless, so the "No Data Found." message
-    # will come up as appropriate
-    #
-    $osTableRef = [()];
-    @{$osTableRef->[0]} = ("Level", 
-			   "1 Min", 
-			   "5 Min", 
-			   "15 Min",
-			   "% Idle",
-			   "Time");
-    
-    my $osRowCount = 1;
+    if (defined $DBI::errstr)  {
+	logMessageWTime ("getOSStatus: prepare - $DBI::errstr\n");
+    }
 
-    if (defined ($curr_row->[0])) {
-
-#	$sth = $dbh{$inTNS}->prepare ($main::statements{os});
-	$sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare ($main::statements{os});
-	$rv = $sth->execute;
-
-	#$osTableRef = [()];
-	#@{$osTableRef->[0]} = ("Level", 
-	#		      "1 Min", 
-	#		      "5 Min", 
-	#		      "15 Min",
-	#		      "% Idle",
-	#		      "Time");
-	#$osRowCount = 1;
-
+    if (defined $sth) {
+	my $rv = $sth->execute;
 	$curr_row = $sth->fetchrow_arrayref;
-	while (defined ($curr_row->[0])) {
+	
+	#
+	# display one row regardless, so the "No Data Found." message
+	# will come up as appropriate
+	#
+	$osTableRef = [()];
+	@{$osTableRef->[0]} = ("Level", 
+			       "1 Min", 
+			       "5 Min", 
+			       "15 Min",
+			       "% Idle",
+			       "Time");
+	
+	my $osRowCount = 1;
+	
+	if (defined ($curr_row->[0])) {
 	    
-	    if ($curr_row->[0] > $os_threshold_alert) {
-		$currStatus = $main::cALERT_STATUS;
-	    } elsif ($curr_row->[0] > $os_threshold_warn) {
-		$currStatus = $main::cWARNING_STATUS;
-	    } else {
-		$currStatus = $main::cOK_STATUS;
-	    }
-
-	    #
-	    # escalate warning/alert level if necessary
-	    #
-	    if (($osStatus == $main::cNO_STATUS) || 
-		($osStatus == $main::cOK_STATUS) ||
-		($currStatus == $main::cALERT_STATUS)) {
-		$osStatus = $currStatus;
-	    } elsif (($currStatus == $main::cALERT_STATUS) &&
-		     ($osStatus == $main::cWARNING_STATUS)) {
-		$osStatus = $currStatus;
-	    }
+#	$sth = $dbh{$inTNS}->prepare ($main::statements{os});
+	    $sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare ($main::statements{os});
+	    $rv = $sth->execute;
 	    
-	    @{$osTableRef->[$osRowCount]} = 
-		($currStatus, 
-		 $curr_row->[0],
-		 $curr_row->[1],
-		 $curr_row->[2],
-		 $curr_row->[3],
-		 $curr_row->[4]);
-
-
-	    $osRowCount++;
+	    #$osTableRef = [()];
+	    #@{$osTableRef->[0]} = ("Level", 
+	    #		      "1 Min", 
+	    #		      "5 Min", 
+	    #		      "15 Min",
+	    #		      "% Idle",
+	    #		      "Time");
+	    #$osRowCount = 1;
+	    
 	    $curr_row = $sth->fetchrow_arrayref;
+	    while (defined ($curr_row->[0])) {
+		
+		if ($curr_row->[0] > $os_threshold_alert) {
+		    $currStatus = $main::cALERT_STATUS;
+		} elsif ($curr_row->[0] > $os_threshold_warn) {
+		    $currStatus = $main::cWARNING_STATUS;
+		} else {
+		    $currStatus = $main::cOK_STATUS;
+		}
+		
+		#
+		# escalate warning/alert level if necessary
+		#
+		if (($osStatus == $main::cNO_STATUS) || 
+		    ($osStatus == $main::cOK_STATUS) ||
+		    ($currStatus == $main::cALERT_STATUS)) {
+		    $osStatus = $currStatus;
+		} elsif (($currStatus == $main::cALERT_STATUS) &&
+			 ($osStatus == $main::cWARNING_STATUS)) {
+		    $osStatus = $currStatus;
+		}
+		
+		@{$osTableRef->[$osRowCount]} = 
+		    ($currStatus, 
+		     $curr_row->[0],
+		     $curr_row->[1],
+		     $curr_row->[2],
+		     $curr_row->[3],
+		     $curr_row->[4]);
+		
+		
+		$osRowCount++;
+		$curr_row = $sth->fetchrow_arrayref;
+	    }
+	}
+	
+	if ($sth) {
+	    $sth->finish;
 	}
     }
 
-    if ($sth) {
-	$sth->finish;
-    }
-
-    showInfoPage ($osTableRef, "os", $inTNS);
+    showInfoPage ($osTableRef, "os", $inTNS, undef);
     return $osStatus;
 
 }
@@ -2282,66 +2420,73 @@ sub getMTSStatus ($$$) {
 
 #    $sth = $dbh{$inTNS}->prepare($main::statements{mts});
     my $sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare($main::statements{mts});
-    my $rv = $sth->execute;
-    
-    $mtsTableRef = [()];
-    @{$mtsTableRef->[0]} = ("Level", 
-			   "Name", 
-			   "Busy", 
-			   "Idle",
-			   "% Busy");
-    
-    
-    $mtsRowCount = 1;
 
-    $curr_row = $sth->fetchrow_arrayref;    
-    while (defined ($curr_row->[0])) {
-	$busy = $curr_row->[1];
-	$idle = $curr_row->[2];
-	$busy_idle = $busy + $idle;
-	$busy_percent = 0;
-	if ($busy_idle) {
-	    $busy_percent = $busy/$busy_idle * 100;
+    if (defined $DBI::errstr)  {
+	logMessageWTime ("getMTSStatus: prepare - $DBI::errstr\n");
+    }
 
-	    if ($busy_percent > $mts_threshold_alert) {
-		$currStatus = $main::cALERT_STATUS;
-	    } elsif ($busy_percent > $mts_threshold_warn) {
-		$currStatus = $main::cWARNING_STATUS;
-	    } else {
-		$currStatus = $main::cOK_STATUS;
+    if (defined $sth) {
+	my $rv = $sth->execute;
+	
+	$mtsTableRef = [()];
+	@{$mtsTableRef->[0]} = ("Level", 
+				"Name", 
+				"Busy", 
+				"Idle",
+				"% Busy");
+	
+	
+	$mtsRowCount = 1;
+	
+	$curr_row = $sth->fetchrow_arrayref;    
+	while (defined ($curr_row->[0])) {
+	    $busy = $curr_row->[1];
+	    $idle = $curr_row->[2];
+	    $busy_idle = $busy + $idle;
+	    $busy_percent = 0;
+	    if ($busy_idle) {
+		$busy_percent = $busy/$busy_idle * 100;
+		
+		if ($busy_percent > $mts_threshold_alert) {
+		    $currStatus = $main::cALERT_STATUS;
+		} elsif ($busy_percent > $mts_threshold_warn) {
+		    $currStatus = $main::cWARNING_STATUS;
+		} else {
+		    $currStatus = $main::cOK_STATUS;
+		}
 	    }
-	}
-
-	#
-	# escalate warning/alert level if necessary
-	#
-	if (($mtsStatus == $main::cNO_STATUS) || 
-	    ($mtsStatus == $main::cOK_STATUS) ||
-	    ($currStatus == $main::cALERT_STATUS)) {
-	    $mtsStatus = $currStatus;
-	} elsif (($currStatus == $main::cALERT_STATUS) &&
-		 ($mtsStatus == $main::cWARNING_STATUS)) {
-	    $mtsStatus = $currStatus;
+	    
+	    #
+	    # escalate warning/alert level if necessary
+	    #
+	    if (($mtsStatus == $main::cNO_STATUS) || 
+		($mtsStatus == $main::cOK_STATUS) ||
+		($currStatus == $main::cALERT_STATUS)) {
+		$mtsStatus = $currStatus;
+	    } elsif (($currStatus == $main::cALERT_STATUS) &&
+		     ($mtsStatus == $main::cWARNING_STATUS)) {
+		$mtsStatus = $currStatus;
+	    }
+	    
+	    @{$mtsTableRef->[$mtsRowCount]} = 
+		($currStatus, 
+		 $curr_row->[0],
+		 $busy,
+		 $idle,
+		 $busy_percent,
+		 $curr_row->[4]);
+	    
+	    
+	    $mtsRowCount++;
+	    $curr_row = $sth->fetchrow_arrayref;
 	}
 	
-	@{$mtsTableRef->[$mtsRowCount]} = 
-	    ($currStatus, 
-	     $curr_row->[0],
-	     $busy,
-	     $idle,
-	     $busy_percent,
-	     $curr_row->[4]);
-
-
-	$mtsRowCount++;
-	$curr_row = $sth->fetchrow_arrayref;
+	if ($sth) {
+	    $sth->finish;
+	}
     }
 
-    if ($sth) {
-	$sth->finish;
-    }
-
-    showInfoPage ($mtsTableRef, "mts", $inTNS);
+    showInfoPage ($mtsTableRef, "mts", $inTNS, undef);
     return $mtsStatus;
 
 }
@@ -2357,6 +2502,7 @@ sub getUpStatus ($) {
     my $upRow = [()];
     my $upTableRef = [()];
     my $upRowCount = 0;
+    my $showMessage = undef;
 
     $upStatus = $main::cALERT_STATUS;
     $upRow = [()];
@@ -2368,12 +2514,18 @@ sub getUpStatus ($) {
     #
     #my $pingResult = 0;
     #$main::db_info{$inTNS}[$main::cDB_HANDLE]->ping;
-    #log_message ("PING DB:$inTNS VAL:$pingResult\n");
+    #logMessage ("PING DB:$inTNS VAL:$pingResult\n");
 
     #
     # attempt to connect again at regular intervals
     # in case the db comes back up
     # 
+    if (defined $main::db_info{$inTNS}[$main::cDB_HANDLE]) {
+	my $ping = $main::db_info{$inTNS}[$main::cDB_HANDLE]->ping;
+	if ($ping == 0) {
+	    undef $main::db_info{$inTNS}[$main::cDB_HANDLE];
+	}
+    }
     if (not (defined ($main::db_info{$inTNS}[$main::cDB_HANDLE]))) {
 	$main::db_info{$inTNS}[$main::cDB_HANDLE] = DBI->connect ("DBI:Oracle:$inTNS", 
 					     $main::db_info{$inTNS}[$main::cDB_USER],
@@ -2381,7 +2533,14 @@ sub getUpStatus ($) {
 						      {RaiseError => 0,
 						       PrintError => 0});
 	if (defined ($DBI::errstr))  {
-	    log_message_wtime ("$DBI::errstr\n");
+	    if ($DBI::err =~ /^$/) {
+		$showMessage = 'Listener DOWN!';
+	    } elsif ($DBI::err =~ /^$/) {
+		$showMessage = 'Database DOWN!';
+	    } else {
+		$showMessage = "Connectivity problem - $DBI::errstr";
+	    }
+	    logMessageWTime ("getUpStatus:$inTNS - $DBI::errstr\n");
 	}
     }
 
@@ -2389,46 +2548,61 @@ sub getUpStatus ($) {
     #
     # if our database handle is ok, we're up...
     #
-    if ((defined ($main::db_info{$inTNS}[$main::cDB_HANDLE])) &&
+    if ((defined $main::db_info{$inTNS}) &&
+	(defined ($main::db_info{$inTNS}[$main::cDB_HANDLE])) &&
 	($main::db_info{$inTNS}[$main::cDB_HANDLE]->ping == 1)) {
 
-	log_message ("$inTNS - We have db handle, and can ping db...\n");
+	debugMessage ("getUpStatus:$inTNS - We have db handle, and can ping db...\n", undef);
 	$upStatus = $main::cOK_STATUS;
 
 	my $sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare($main::statements{up});
-	my $rv = $sth->execute;
-	
-	$upTableRef = [()];
-	@{$upTableRef->[0]} = ("Level", 
-				"Statistic", 
-				"Value");
-	
-	$upRowCount = 1;
 
-	$upRow = $sth->fetchrow_arrayref;
-	while (defined ($upRow->[0])) {
-	    @{$upTableRef->[$upRowCount]} = 
-		($main::cNO_STATUS, 
-		 $upRow->[0],
-		 $upRow->[1]);
-	    	    
-	    $upRowCount++;
-	    $upRow = $sth->fetchrow_arrayref;
-
+	if (defined $DBI::errstr)  {
+	    logMessageWTime ("getUpStatus: prepare - $DBI::errstr\n");
 	}
 
-	showInfoPage ($upTableRef, "up", $inTNS);
+	debugMessage ("getUpStatus:$inTNS, prepare ok.\n", 2);
+
+	if (defined $sth) {
+	    my $rv = $sth->execute;
+	    
+	    $upTableRef = [()];
+	    @{$upTableRef->[0]} = ("Level", 
+				   "Statistic", 
+				   "Value");
+	    
+	    $upRowCount = 1;
+	    
+	    $upRow = $sth->fetchrow_arrayref;
+	    while (defined ($upRow->[0])) {
+#	    debugMessage ("getUpStatus:$inTNS, $upRow->[0], $upRow->[1]\n",2);
+		@{$upTableRef->[$upRowCount]} = 
+		    ($main::cNO_STATUS, 
+		     $upRow->[0],
+		     $upRow->[1]);
+		
+		$upRowCount++;
+		$upRow = $sth->fetchrow_arrayref;
+		
+	    }
+	    if (defined $sth) {
+		$sth->finish;
+	    }
+	    
+	}
+	showInfoPage ($upTableRef, "up", $inTNS, undef);
 
     } else {
 
 	undef $main::db_info{$inTNS}[$main::cDB_HANDLE];
-	log_message ("$inTNS - NO db handle, or failed PING...\n");
+	debugMessage ("getUpStatus:$inTNS - NO db handle, or failed PING...\n", 1);
 	#
 	# don't show unless we have a db handle
 	#
-	showInfoPage (undef, "up", $inTNS);
+	showInfoPage (undef, "up", $inTNS, $showMessage);
     }
 
+    debugMessage ("getUpStatus:$inTNS, $upStatus, returning\n",2);
     return $upStatus;
 }
 
@@ -2446,35 +2620,63 @@ sub getDbStatus ($) {
     my $sth = undef;
     my $rv = 0;
 
+    debugMessage ("getDbStatus:$inTNS\n",2);
     if (defined ($main::db_info{$inTNS}[$main::cDB_HANDLE])) {
 	
-	$dbStatus = $main::cOK_STATUS;
-
-	$sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare($main::statements{db});
-	$rv = $sth->execute;
-	
-	$dbTableRef = [()];
-	@{$dbTableRef->[0]} = ("Level", 
-				"Parameter", 
-				"Value");
-	
-	$dbRowCount = 1;
-
-	$dbRow = $sth->fetchrow_arrayref;
-	while (defined ($dbRow->[0])) {
-	    @{$dbTableRef->[$dbRowCount]} = 
-		($main::cNO_STATUS, 
-		 $dbRow->[0],
-		 $dbRow->[1]);
-	    	    
-	    $dbRowCount++;
-	    $dbRow = $sth->fetchrow_arrayref;
+	my $test = $main::db_info{$inTNS}[$main::cDB_HANDLE]->ping;
+	if (defined $test) {
+	    debugMessage ("getDbStatus:$inTNS - ping returns OK\n",2);
+	} else {
+	    debugMessage ("getDbStatus:$inTNS - ping FAILS\n",2);
 	}
 
-	showInfoPage ($dbTableRef, "db", $inTNS);
+	$dbStatus = $main::cOK_STATUS;
+
+	debugMessage ("getDbStatus:$inTNS - before prepare\n",2);
+	$sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare($main::statements{db});
+
+	if (defined $DBI::errstr)  {
+	    logMessageWTime ("getDbStatus:$inTNS prepare - $DBI::errstr\n");
+	}
+
+
+	debugMessage ("getDbStatus:$inTNS - prepare ok\n",2);
+
+
+	if (defined $sth) {
+	    $rv = $sth->execute;
+	    debugMessage ("getDbStatus:$inTNS - exec ok\n",2);
+	    
+	    $dbTableRef = [()];
+	    @{$dbTableRef->[0]} = ("Level", 
+				   "Parameter", 
+				   "Value");
+	    
+	    $dbRowCount = 1;
+	    
+	    $dbRow = $sth->fetchrow_arrayref;
+	    while (defined ($dbRow->[0])) {
+		debugMessage ("getDbStatus:$inTNS - $dbRow->[0]\n",2);
+		@{$dbTableRef->[$dbRowCount]} = 
+		    ($main::cNO_STATUS, 
+		     $dbRow->[0],
+		     $dbRow->[1]);
+		
+		$dbRowCount++;
+		$dbRow = $sth->fetchrow_arrayref;
+	    }
+	}
+	debugMessage ("getDbStatus:$inTNS - normal info page\n",2);
+	showInfoPage ($dbTableRef, "db", $inTNS, undef);
 
     } else {
-	showInfoPage (undef, "db", $inTNS);
+	debugMessage ("getDbStatus:$inTNS - down info page\n",2);
+	showInfoPage (undef, "db", $inTNS, 
+		      'Cannot connect.  Check "up" status for details');
+    }
+
+    if (defined $sth) {
+	$sth->finish;
     }
 
     return $dbStatus;
@@ -2509,65 +2711,72 @@ sub getExtentsStatus ($$$) {
 
     my $sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare ($main::statements{extents});
     
-    my $rv = $sth->execute;
+    if (defined $DBI::errstr) {
+	logMessageWTime ("getExtentsStatus:$inTNS prepare - $DBI::errstr\n");
+    }
 
-    my $extents_row = $sth->fetchrow_arrayref;
-    while (defined ($extents_row->[0])) {
+    if (defined $sth) {
+	my $rv = $sth->execute;
 
-	#
-	# looks like we're at alert status...
-	#
-	if ($extents_row->[2] ==
-	    ($extents_row->[1] - $extents_threshold_alert)) {
-	    $currStatus = $main::cALERT_STATUS;
 
-	#
-	# warn status... don't set if we're already at main::cALERT_STATUS
-        #
-	} elsif ($extents_row->[2] == 
-		  ($extents_row->[1] - $extents_threshold_warn)) {
-	    $currStatus = $main::cWARNING_STATUS;
-
-	# 
-	# if we haven't set the status yet, we're at ok status.  This
-        # may change with subsequent iterations of this loop
-	#
-	} else {
-	    $currStatus = $main::cOK_STATUS;
-	}
-
-	#
-	# escalate warning/alert level if necessary
-	#
-	if (($extentsStatus == $main::cNO_STATUS) || 
-	    ($extentsStatus == $main::cOK_STATUS) ||
-	    ($currStatus == $main::cALERT_STATUS)) {
-	    $extentsStatus = $currStatus;
-	} elsif (($currStatus == $main::cALERT_STATUS) &&
-		 ($extentsStatus == $main::cWARNING_STATUS)) {
-	    $extentsStatus = $currStatus;
+	my $extents_row = $sth->fetchrow_arrayref;
+	while (defined ($extents_row->[0])) {
+	    
+	    #
+	    # looks like we're at alert status...
+	    #
+	    if ($extents_row->[2] ==
+		($extents_row->[1] - $extents_threshold_alert)) {
+		$currStatus = $main::cALERT_STATUS;
+		
+		#
+		# warn status... don't set if we're already at main::cALERT_STATUS
+		#
+	    } elsif ($extents_row->[2] == 
+		     ($extents_row->[1] - $extents_threshold_warn)) {
+		$currStatus = $main::cWARNING_STATUS;
+		
+		# 
+		# if we haven't set the status yet, we're at ok status.  This
+		# may change with subsequent iterations of this loop
+		#
+	    } else {
+		$currStatus = $main::cOK_STATUS;
+	    }
+	    
+	    #
+	    # escalate warning/alert level if necessary
+	    #
+	    if (($extentsStatus == $main::cNO_STATUS) || 
+		($extentsStatus == $main::cOK_STATUS) ||
+		($currStatus == $main::cALERT_STATUS)) {
+		$extentsStatus = $currStatus;
+	    } elsif (($currStatus == $main::cALERT_STATUS) &&
+		     ($extentsStatus == $main::cWARNING_STATUS)) {
+		$extentsStatus = $currStatus;
+	    }
+	    
+	    if (($currStatus == $main::cALERT_STATUS) ||
+		($currStatus == $main::cWARNING_STATUS)) {
+		@{$extentsTableRef->[$extentsRowCount]} = 
+		    ($currStatus, 
+		     $extents_row->[0],
+		     $extents_row->[3],
+		     $extents_row->[2],
+		     $extents_row->[1]);
+		
+		
+		$extentsRowCount++;
+	    }
+	    $extents_row = $sth->fetchrow_arrayref;
 	}
 	
-	if (($currStatus == $main::cALERT_STATUS) ||
-	    ($currStatus == $main::cWARNING_STATUS)) {
-	    @{$extentsTableRef->[$extentsRowCount]} = 
-		($currStatus, 
-		 $extents_row->[0],
-		 $extents_row->[3],
-		 $extents_row->[2],
-		 $extents_row->[1]);
-	    
-
-	    $extentsRowCount++;
+	if ($sth) {
+	    $sth->finish;
 	}
-	$extents_row = $sth->fetchrow_arrayref;
-    }
-    
-    if ($sth) {
-	$sth->finish;
     }
 
-    showInfoPage ($extentsTableRef, "extents", $inTNS);
+    showInfoPage ($extentsTableRef, "extents", $inTNS, undef);
     return $extentsStatus;
 
 }
@@ -2581,6 +2790,7 @@ sub getExtentsStatus ($$$) {
 sub getInfo ($$$) {
     my ($forceUpdate, $inTNS, $inMinutes) = @_;
 
+    debugMessage ("getInfo: $inTNS, $inMinutes\n", 2);
     #
     # we do this in readConfig now, and leave them between
     # iterations of "main" because not every service is updated
@@ -2611,6 +2821,8 @@ sub getInfo ($$$) {
     $main::stats{up}{$inTNS}[$main::cSTATUS] = $theStatus{up};
     $main::stats{up}{$inTNS}[$main::cUPD_TIME] = $main::currTime;
 
+    debugMessage ("getInfo:$inTNS - before get db status\n",2);
+
     #
     # dbStatus doesn't seem to be used here...
     #
@@ -2622,11 +2834,13 @@ sub getInfo ($$$) {
 
 #	foreach $key (keys %{$main::config_info{default}}) {
 	foreach $key (keys %{$main::names{long}}) {
+		debugMessage ("getInfo:$inTNS - checking $key}\n",2);
 	    if ((not ($key =~ /^up$/)) && ($main::names{shown}{$key} == 1)) {
 		$theStatus{$key} = $main::stats{$key}{$inTNS}[$main::cSTATUS];
 	    }
 	}
     } else {
+	debugMessage ("getInfo:$inTNS - seting NO_STATUS\n",2);
 	foreach $key (keys %{$main::names{long}}) {
 	    if ((not ($key =~ /^up$/)) &&
 		(defined ($main::config_info{$thePrefGroup}{$key}))) {
@@ -2635,6 +2849,7 @@ sub getInfo ($$$) {
 	}
     }
 
+    debugMessage ("getInfo:$inTNS - set default ok.\n", 2);
 
     if ($theStatus{up} == $main::cOK_STATUS) {
 
@@ -2645,7 +2860,7 @@ sub getInfo ($$$) {
 		($forceUpdate == $main::cFORCE_UPD)) {
 		#if ($key =~ /^os$/) {
 		    # this shouldn't use the testRef
-		#    showInfoPage ($main::testRef, "os", $inTNS);
+		#    showInfoPage ($main::testRef, "os", $inTNS, undef);
 		#}
 		if ((not ($key =~ /^up$/)) &&
 		    ($main::names{shown}{$key} == 1)) {
@@ -2655,7 +2870,7 @@ sub getInfo ($$$) {
 			    getStatus ($thePrefGroup, $key, $inTNS);
 		    }
 
-#		    print ("Setting stats TNS:$inTNS SV:$key ST:$theStatus{$key}\n");
+
 		    $main::stats{$key}{$inTNS}[$main::cSTATUS] = 
 			$theStatus{$key};
 		    
@@ -2690,13 +2905,12 @@ sub showKarmaTableHeader () {
     print $main::index_file ("<td height=\"$main::cSTATUS_HEIGHT\" width=\"$main::cSTATUS_WIDTH\"><font size=\"4\"><b>\n");
     print $main::index_file ("<font face=\"Arial, Helvetica, sans-serif\"\n");
     print $main::index_file ("color=\"$main::cKARMA_TEXT_COLOR\">\n");
-    print $main::index_file ("<A HREF=\"help/$main::files{help}{db}\" ALT=\"Help - $main::names{long}{db}\">$main::names{short}{db}</A>\n");
+    print $main::index_file ("<A HREF=\"help$main::PATH_DELIM$main::files{help}{db}\" ALT=\"Help - $main::names{long}{db}\">$main::names{short}{db}</A>\n");
     print $main::index_file ("</font></b></font></td>\n");
 
     my $key = undef;
 
     foreach $key (keys %{$main::names{long}}) {
-#print ("HEADER: $key\n");
 	#
 	# need to use pref group prefs if defined
 	#
@@ -2705,10 +2919,8 @@ sub showKarmaTableHeader () {
 #	    ($main::config_info{default}{$key}[$main::cSTATUS] > 0))) {
 	     (shouldShowServiceHeader ($key) == 1))) {
 #	    print $main::index_file ("<TD bgcolor=\"$main::cHD_BG_COLOR\" cellspacing=0 cellpadding=0 ALIGN=CENTER><H4>\n");
-#	    print $main::index_file ("<I><A HREF=\"help/$main::files{help}{$key}\" ALT=\"Help - $main::names{long}{$key}\">$main::names{short}{$key}</A></I>\n");
+#	    print $main::index_file ("<I><A HREF=\"help$main::PATH_DELIM$main::files{help}{$key}\" ALT=\"Help - $main::names{long}{$key}\">$main::names{short}{$key}</A></I>\n");
 
-
-#	    print ("Showing header - $main::names{short}{$key}\n");
 
 	    #
 	    # new stuff
@@ -2717,7 +2929,7 @@ sub showKarmaTableHeader () {
 	    print $main::index_file ("<font face=\"Arial, Helvetica, sans-serif\"\n");
 	    print $main::index_file ("color=\"$main::cKARMA_TEXT_COLOR\">\n");
 
-	    print $main::index_file ("<A HREF=\"help/$main::files{help}{$key}\">$main::names{short}{$key}</A>\n");
+	    print $main::index_file ("<A HREF=\"help$main::PATH_DELIM$main::files{help}{$key}\">$main::names{short}{$key}</A>\n");
 
 
 #	    print $main::index_file ("<I>$key</I>\n");
@@ -2746,8 +2958,9 @@ sub showKarmaTableRow ($$) {
 
     my $key = undef;
 
+    print $main::index_file ("<tr>");
     print $main::index_file ("<td width=\"$main::cHEAD_HEIGHT\" height=\"$main::cSTATUS_HEIGHT\"><font face=\"Arial, Helvetica, sans-serif\" color=\"$main::cKARMA_TEXT_COLOR\"><a href=\"generic_info.html\" target=\"main\">\n");
-    print $main::index_file ("<A HREF=\"info/$inTNS.$main::files{info}{db}\">$inTNS</A>\n");
+    print $main::index_file ("<A HREF=\"info$main::PATH_DELIM$inTNS.$main::files{info}{db}\">$inTNS</A>\n");
     print $main::index_file ("</a></font></td>\n");
 
 #    my $thePrefGroup = $main::db_info{$inTNS}[$main::cDB_PREFGROUP];
@@ -2785,17 +2998,19 @@ sub showKarmaTableRow ($$) {
 # print the help message and exit
 #
 #-----------------------------------------------------------------------
-sub print_help () {
+sub printHelp () {
 
-    print ("\n");
-    print (" v - print version info and exit\n");
-    print (" h - print this help info\n");
-    print (" k - karma root directory\n");
-    print (" w - print the warranty\n");
-    print (" c - specify the karma configuration file\n");
-    print (" l - specify logfile (default is stdout)\n");
-    print ("\n");
-    print ("$0 [-h] [-k karma_root] [-c karma.conf]\n");
+    print 
+	"\n",
+	" d - debug level (default 0)\n",
+	" v - print version info and exit\n",
+	" h - print this help info\n",
+	" k - karma root directory\n",
+	" w - print the warranty\n",
+	" c - specify the karma configuration file\n",
+	" l - specify logfile (default is stdout)\n",
+	"\n",
+	"$0 [-h] [-k karma_root] [-c karma.conf]\n";
     
     exit;
 
@@ -2817,7 +3032,7 @@ sub readConfig ($) {
     # open file
     my $conf_file = new IO::File "$conf_file_name";
     if (not (defined ($conf_file))) {
-	log_message ("Cannot open config file, using factory defaults\n");
+	logMessage ("Cannot open config file, using factory defaults\n");
     }
 #    open (FILE, "$main::index_file");
 
@@ -2857,13 +3072,12 @@ sub readConfig ($) {
 
 
 	    @curr_array = split (":", $curr_line);
-#	    print ("Reading config... @curr_array\n");
+
 	    if ($curr_array[0] =~ /^karma$/i) {
 
 		# tnsname
 		$theTNS = uc $curr_array[2];
 
-#		print ("readConfig - TNS:$theTNS\n");
 
 		if (isValidTNS ($theTNS) == 1) {
 		    $theUser = $curr_array[3];
@@ -2905,12 +3119,12 @@ sub readConfig ($) {
 		    # log any errors
 		    #
 		    if (defined ($DBI::errstr)) {
-			log_message_wtime ("$DBI::errstr\n");
+			logMessageWTime ("readConfig - $DBI::errstr\n");
 		    }
 
 		} else {
 		 
-		    log_message_wtime ("Invalid TNS - $theTNS\n");
+		    logMessageWTime ("Invalid TNS - $theTNS\n");
 		}
 
 	    } elsif ($curr_array[0] =~ /^refresh$/i) {
@@ -2975,7 +3189,7 @@ sub readConfig ($) {
 		#
 		foreach $key (keys %main::pref_groups) {
 
-#		    print ("SUB GROUP SECTION - $key\n");
+
 		    #
 		    # preferences are bound for a particular preference group
 		    #
@@ -3048,6 +3262,8 @@ sub readConfig ($) {
 	$conf_file->close;
     }
     #close (FILE);
+
+    checkForDBs ();
 }
 
 #---------------------------------------------------------------
@@ -3111,7 +3327,7 @@ sub setConfigEmail ($$$) {
     my ($inPrefGroup, $inSize, $inEmails) = @_;
 
     if (not (defined ($inEmails))) {
-	print ("setConfigEmail:$inPrefGroup -  inEmails is undefined...\n");
+	debugMessage ("setConfigEmail:$inPrefGroup - inEmails is undefined...\n", 2);
     }
 
     my $i = 0;
@@ -3128,26 +3344,32 @@ sub setConfigEmail ($$$) {
 #
 #
 #---------------------------------------------------------------
-sub showInfoPage ($$$) {
-    my ($inTableRef, $inType, $inTNS) = @_;
+sub showInfoPage ($$$$) {
+    my ($inTableRef, $inType, $inTNS, $inMessage) = @_;
 
+    debugMessage ("showInfoPage:$inTNS, $inType\n", 2);
     #
     # top of page
     #
-    $main::INFO_FILE_NAME = "$main::KARMA_DOC_ROOT/info/$inTNS.$main::files{info}{$inType}";
-#print ("Trying to open file: $filename\n");
+    $main::INFO_FILE_NAME = "$main::KARMA_DOC_ROOT$main::PATH_DELIM" . 
+	'info' . "$main::PATH_DELIM$inTNS.$main::files{info}{$inType}";
 
+    debugMessage ("showInfoPage:$inTNS, IF:$main::INFO_FILE_NAME\n", 2);
     $main::info_file = new IO::File ">$main::INFO_FILE_NAME"
-	or die ("Can't open $main::INFO_FILE_NAME - $!\n");
+#	or die ("Can't open $main::INFO_FILE_NAME - $!\n");
+	or logMessage_exit ("Can't open $main::INFO_FILE_NAME - $!\n");
+
+    debugMessage ("showInfoPage:$inTNS, IF opened ok.\n", 2);
 
     if (not (defined ($main::info_file))) {
-	log_message ("Cannot open info page file: $main::INFO_FILE_NAME\n");
+	logMessage ("Cannot open info page file: $main::INFO_FILE_NAME\n");
     } else {
 #       open ($main::info_file, ">$filename");
 
 
 	showInfoHead ($inTNS, $inType);
-	
+
+	debugMessage ("showInfoPage:$inTNS - passed showInfoHead\n",2);
 	my $i = 0;
 	my $j = 0;
 	
@@ -3182,13 +3404,13 @@ sub showInfoPage ($$$) {
 		    while (defined ($inTableRef->[$j][$i])) {
 			if ($i == 0) {
 			    if ($inTableRef->[$j][$i] == $main::cWARNING_STATUS) {
-				print $main::info_file ("<TD><IMG SRC=\"../images/yellow_status\"></TD>\n"); 
+				print $main::info_file ("<TD><IMG SRC=\"..$main::PATH_DELIM" . 'images' . "$main::PATH_DELIM" . 'yellow_status' . "\"></TD>\n"); 
 			    } elsif ($inTableRef->[$j][$i] == $main::cALERT_STATUS) {
-				print $main::info_file ("<TD height=\"30\"><IMG SRC=\"../images/red_status\"></TD>\n"); 
+				print $main::info_file ("<TD height=\"30\"><IMG SRC=\"..$main::PATH_DELIM" . 'images' . "$main::PATH_DELIM" . 'red_status' . "\"></TD>\n"); 
 			    } elsif ($inTableRef->[$j][$i] == $main::cOK_STATUS) {
-				print $main::info_file ("<TD><IMG SRC=\"../images/green_status\" ></TD>\n");  
+				print $main::info_file ("<TD><IMG SRC=\"..$main::PATH_DELIM" . 'images' . "$main::PATH_DELIM" . 'green_status' . "\" ></TD>\n");  
 			    } else {
-				print $main::info_file ("<TD><IMG SRC=\"../images/purple_status\"></TD>\n");  
+				print $main::info_file ("<TD><IMG SRC=\"..$main::PATH_DELIM" . 'images' . "$main::PATH_DELIM" . 'purple_status' . "\"></TD>\n");  
 			    }
 			} else {
 			    print $main::info_file ("<TD height=\"25\">\n");
@@ -3212,15 +3434,18 @@ sub showInfoPage ($$$) {
 		print $main::info_file ("No Data Found.\n");
 	    }
 	} else {
+	    if (not (defined $inMessage)) {
+		$inMessage = 'Unknown connectivity problem.';
+	    }
 	    print $main::info_file 
 		"<font color=\"$main::cEMPHASIS_TEXT\"",
 		"size=\"5\" face=\"Arial, Helvetica, sans-serif\">",
-		"Database or Listener DOWN!</font>\n";
+		"$inMessage" . "</font>\n";
 	}
 	
 	
 	showInfoFoot ($inType, $inTNS);
-	
+	debugMessage ("showInfoPage:$inTNS - passed showInfoFoot\n",2);	
 	
 	#   if (defined ($main::info_file)) {
 	$main::info_file->close;
@@ -3291,9 +3516,9 @@ sub showKarmaHeadMain () {
 
     print $main::index_file ("<tr bgcolor=\"$main::cHEAD_BG_COLOR\">\n"); 
 
-    print $main::index_file ("<th align=\"left\" height=\"75\" ><img src=\"images/logo.jpg\" ></th>\n");
+    print $main::index_file ("<th align=\"left\" height=\"75\" ><img src=\"images" . "$main::PATH_DELIM" . "logo.jpg\" ></th>\n");
     print $main::index_file ("<th width=\"61\%\" height=\"50\"><font color=\"#FF9933\" face=\"Arial, Helvetica, sans-serif\" size=\"6\">Oracle Monitor</font></th>\n");
-    print $main::index_file ("<th width=\"11\%\" height=\"50\" align=right><img src=\"images/sm_logo.jpg\"></th>\n");
+    print $main::index_file ("<th width=\"11\%\" height=\"50\" align=right><img src=\"images" . "$main::PATH_DELIM" . "sm_logo.jpg\"></th>\n");
 
     print $main::index_file ("</tr>\n");
 
@@ -3317,14 +3542,14 @@ sub showKarmaFootMain () {
 #    print $main::index_file ("</BODY></HTML>\n");
 
 
-    my $timeStr = getCurrTimeStr ();
+    my $timeStr = getCurrTimeString (undef);
     print $main::index_file ("</td>\n");
     print $main::index_file ("</tr>\n");
     print $main::index_file ("<tr bgcolor=\"$main::cINFO_BG_COLOR\">\n"); 
     print $main::index_file ("<td colspan=\"2\" height=\"2\" bgcolor=\"$main::cHEAD_BG_COLOR\" colspan=\"2\"><font color=\"$main::cTEXT_COLOR\" face=\"Arial, Helvetica, sans-serif\" size=\"5\">Last \n");
     print $main::index_file ("updated <font color=\"$main::cEMPHASIS_TEXT\">$timeStr</font></font></td>\n");
 
-    print $main::index_file ("<td bgcolor=\"$main::cHEAD_BG_COLOR\" cellpadding=\"0\" cellspacing=\"0\" align=\"right\"><a href=\"help.html\"><img border=0 src=\"images/help.jpg\"></a></td>\n");
+    print $main::index_file ("<td bgcolor=\"$main::cHEAD_BG_COLOR\" cellpadding=\"0\" cellspacing=\"0\" align=\"right\"><a href=\"help.html\"><img border=0 src=\"images" . "$main::PATH_DELIM" . "help.jpg\"></a></td>\n");
 
     print $main::index_file ("</tr>\n");
     print $main::index_file ("</table>\n");
@@ -3342,7 +3567,7 @@ sub showKarmaFootMain () {
 sub showInfoFoot ($$) {
     my ($inType, $inTNS) = @_;
 
-#    print $main::info_file ("<BR><A HREF=\"../help/$main::files{help}{$inType}\"><IMG SRC=\"../images/question_symbol\"></A>\n");
+#    print $main::info_file ("<BR><A HREF=\"..$main::PATH_DELIM" . 'help' . "$main::PATH_DELIM$main::files{help}{$inType}\"><IMG SRC=\".." . "$main::PATH_DELIM" . 'images' . "$main::PATH_DELIM" . "question_symbol\"></A>\n");
 
     #
     # bottom of the page
@@ -3350,7 +3575,7 @@ sub showInfoFoot ($$) {
 #    print $main::info_file ("</BODY>\n");
 #    print $main::info_file ("</HTML>\n");
 
-    my $timeStr = getCurrTimeStr ();
+    my $timeStr = getCurrTimeString (undef);
 
     print $main::info_file ("</td>\n");
     print $main::info_file ("</tr>\n");
@@ -3364,8 +3589,8 @@ sub showInfoFoot ($$) {
     print $main::info_file ("$timeStr</font></font></td>\n");
     print $main::info_file ("<td height=\"$main::cHEAD_HEIGHT\" bgcolor=\"$main::cHEAD_BG_COLOR\" width=\"$main::cHEAD_HEIGHT\">\n");
 #    print $main::info_file ("<a href=\"generic_help.html\" target=\"_self\">\n");
-    print $main::info_file ("<a href=\"../help/$main::files{help}{$inType}\" target=\"_self\">\n");
-    print $main::info_file ("<img src=\"../images/help.jpg\" width=\"$main::cHEAD_HEIGHT\" height=\"59\" align=\"right\" border=\"0\"></a></td>\n");
+    print $main::info_file ("<a href=\"..$main::PATH_DELIM" . 'help' . "$main::PATH_DELIM$main::files{help}{$inType}\" target=\"_self\">\n");
+    print $main::info_file ("<img src=\"..$main::PATH_DELIM" . 'images' . "$main::PATH_DELIM" . "help.jpg\" width=\"$main::cHEAD_HEIGHT\" height=\"59\" align=\"right\" border=\"0\"></a></td>\n");
     print $main::info_file ("</tr>\n");
     print $main::info_file ("</table>\n");
     print $main::info_file ("</body>\n");
@@ -3373,6 +3598,7 @@ sub showInfoFoot ($$) {
 
 
 }
+
 
 #-----------------------------------------------------------------------
 #
@@ -3383,7 +3609,7 @@ sub showInfoHead ($$) {
     my ($inTNS, $inType) = @_;
 
 
-    my $timeStr = getCurrTimeStr ();
+    my $timeStr = getCurrTimeString (undef);
     #
     # old header stuff
     #
@@ -3402,7 +3628,7 @@ sub showInfoHead ($$) {
 
 
     print $main::info_file ("<tr bgcolor=\"$main::cHEAD_BG_COLOR\">\n"); 
-    print $main::info_file ("<th align=\"left\" height=\"$main::cHEAD_HEIGHT\"><font color=\"$main::cTEXT_COLOR\" face=\"Arial, Helvetica, sans-serif\" size=\"7\"><img src=\"../images/logo.jpg\" width=\"144\" height=\"36\">\n"); 
+    print $main::info_file ("<th align=\"left\" height=\"$main::cHEAD_HEIGHT\"><font color=\"$main::cTEXT_COLOR\" face=\"Arial, Helvetica, sans-serif\" size=\"7\"><img src=\"..$main::PATH_DELIM" . 'images' . "$main::PATH_DELIM" . "logo.jpg\" width=\"144\" height=\"36\">\n"); 
     
     print $main::info_file ("</font></th>\n");
     print $main::info_file ("<th height=\"$main::cHEAD_HEIGHT\"><font color=\"$main::cTEXT_COLOR\" face=\"Arial, Helvetica, sans-serif\" size=\"6\">\n");
@@ -3452,7 +3678,7 @@ sub sendEmail ($$@) {
 #
 #-----------------------------------------------------------------------
 sub catchTERM {
-    log_message_wtime ("Received TERM signal, exiting karmad\n");
+    logMessageWTime ("Received TERM signal, exiting karmad\n");
     exitKarma ();
 }
 
@@ -3462,15 +3688,15 @@ sub catchTERM {
 #
 #-----------------------------------------------------------------------
 sub catchHUP {
-#    log_message ("kill -HUP, rereading karma.conf file\n");
-    log_message_wtime ("Rereading config file.\n");
+#    logMessage ("kill -HUP, rereading karma.conf file\n");
+    logMessageWTime ("Rereading config file.\n");
     my $key = undef;
 
     # 
     # clean up the database handle structures
     #
     foreach $key (keys %main::db_info) {
-	log_message ("cleaning up DB:$key\n");
+	logMessage ("cleaning up DB:$key\n");
 	if (defined ($main::db_info{$key}[$main::cDB_HANDLE])) {
 	    $main::db_info{$key}[$main::cDB_HANDLE]->disconnect;
 	    undef $main::db_info{$key};
@@ -3481,7 +3707,7 @@ sub catchHUP {
     # clean up the config info data structures
     #
     foreach $key (keys %main::config_info) {
-	log_message ("cleaning up $key\n");
+	logMessage ("cleaning up $key\n");
 	if (not ($key =~ /^factory$/)) {
 	    undef %{$main::config_info{$key}};
 	}
@@ -3541,11 +3767,11 @@ sub catchHUP {
 #
 #-----------------------------------------------------------------------
 sub showStatus {
-#    log_message ("kill -USR1, return status via named pipe\n");
+#    logMessage ("kill -USR1, return status via named pipe\n");
 
     my $dbStatus = "";
     my $startTimeStr = getTimeString ($main::startTime);
-    my $currTimeStr = getCurrTimeStr ();
+    my $currTimeStr = getCurrTimeString (undef);
     my $timeStr = "";
     my $statusStr = "";
     my $thePrefGroup = "";
@@ -3573,9 +3799,9 @@ sub showStatus {
 	foreach $servKey (keys %{$main::names{long}}) {
 #	    if (shouldShowService ($thePrefGroup, $servKey)) {
 	    if ($main::names{shown}{$servKey} == 1) {
-		# not correct.  getCurrTimeStr doesn't take a time param
-#		print ("TESTING - SV:$servKey TNS:$tnsKey ST:$main::stats{$servKey}{$tnsKey}[$main::cSTATUS]\n");
-#		$timeStr = getCurrTimeStr ($main::stats{$servKey}{$tnsKey}[$main::cUPD_TIME]);
+		# not correct.  getCurrTimeString doesn't take a time param
+
+#		$timeStr = getCurrTimeString ($main::stats{$servKey}{$tnsKey}[$main::cUPD_TIME]);
 		$timeStr = getTimeString ($main::stats{$servKey}{$tnsKey}[$main::cUPD_TIME]);
 		$statusStr = getStatusStr ($main::stats{$servKey}{$tnsKey}[$main::cSTATUS]);
 		print FIFO ("    $timeStr $statusStr\t$servKey\n");
@@ -3597,7 +3823,7 @@ sub showStatus {
 #-----------------------------------------------------------------------
 sub refreshServices {
 	$main::currTime = time ();
-	log_message_wtime ("Refreshing service statuses for all dbs.\n");
+	logMessageWTime ("Refreshing service statuses for all dbs.\n");
 	doDBChecks (1);
 }
 
@@ -3609,31 +3835,14 @@ sub refreshServices {
 #-----------------------------------------------------------------------
 sub exitKarma () {
 
-    #
-    # close the message socket (named pipe)
-    #
-#    close (KARMAS_OCK);
-#    close (FIFO);
+    logMessageWTime ("Exiting karma.\n");
 
-    #
-    # do we ever get here?
-    #
     $main::logfile->close;
-#    close (LFILE);
 
     #
-    # not sure if we really ever get to here since we're looping
-    # infinitely...  I wonder how we can terminate cleanly after
-    # that?
+    # implicit cleanup is ok I think...
     #
-    my $key = undef;
-    foreach $key (keys %main::db_info) {
-	if (defined ($main::db_info{$key}[$main::cDB_HANDLE])) {
-	    $main::db_info{$key}[$main::cDB_HANDLE]->disconnect;
-	}
-    }
-
-    exit;
+    exit 1;
 }
 
 
@@ -3658,6 +3867,8 @@ sub doNotification ($$) {
     my @notifyServices = undef;
     my $doNotify = 0;
 
+    debugMessage ("doNotification...\n", 2);
+
 #    @emails = getNotifyEmails ($prefGroup, $);
     $doNotify = shouldNotify ($prefGroup);
 
@@ -3665,7 +3876,8 @@ sub doNotification ($$) {
 	@alertServices = getNotifyServices ($prefGroup, $main::cNOTIFY_ALRT);
 
 	if (defined (@alertServices)) {
-	    $notifySize = getNotifySize ($prefGroup, $main::cNOTIFY_ALRT);
+#	    $notifySize = getNotifySize ($prefGroup, $main::cNOTIFY_ALRT);
+	    $notifySize = getEmailSize ($prefGroup);
 	    $notifyMinutes = 
 		getNotifyMinutes ($prefGroup, $main::cNOTIFY_WARN);
 	    $servCount = scalar @alertServices;
@@ -3694,7 +3906,8 @@ sub doNotification ($$) {
 		getNotifyServices ($prefGroup, $main::cNOTIFY_WARN);
 
 	    if (defined (@alertServices)) {
-		$notifySize = getNotifySize ($prefGroup, $main::cNOTIFY_WARN);
+#		$notifySize = getNotifySize ($prefGroup, $main::cNOTIFY_WARN);
+		$notifySize = getEmailSize ($prefGroup);
 		$servCount = scalar @warnServices;
 		for ($i = 0; $i < $servCount; $i++) {
 		    $currStatus = getCurrStatus ($alertServices[$i], $inTNS);
@@ -3759,7 +3972,7 @@ sub doNotification_old ($$) {
 	    $count = scalar @alertServices;
 	    for ($i = 0; $i < $count; $i++) {
 		
-#	    print ("TNS:$inTNS AS:$alertServices[$i] ST:
+
 #	print ("do_notify: P:$pref_group M:$inMinutes A:$main::config_notify{$pref_group}{$main::cNOTIFY_ALRT}[0]\n");
 		if ((defined ($main::stats{$alertServices[$i]}{$inTNS}[$main::cSTATUS])) && 
 		    (($inMinutes == 0) || ($inMinutes % $main::config_notify{$pref_group}{$main::cNOTIFY_ALRT}[0] == 0)) &&
@@ -3883,7 +4096,7 @@ sub sendNotification ($$@) {
 		if ($main::USE_EMAIL_NOTIFICATION == 1) {
 		    sendEmail ($email, $subject, $message);
 		}
-		log_message ("EMAILING $email - $message\n");
+		logMessage ("EMAILING $email - $message\n");
 	    }
 	}
     }
@@ -4043,13 +4256,13 @@ sub setDefConfig () {
     my $theTNS = $ENV{DBI_DSN};
     $theTNS =~ s/.*://;
 
-    print ("setDefConfig: TNS:$theTNS\n");
-
-#    print ("We're here...\n");
+    logMessage ("Using default configuration, USER:$ENV{DBI_USER}\n");
+    logMessage ("PASS:$ENV{DBI_PASS}, TNS:$theTNS\n");
+    debugMessage ("setDefConfig: TNS:$theTNS\n", 1);
 
     # connect to the db
     $main::db_info{$theTNS}[$main::cDB_HANDLE] = DBI->connect 
-	("DBI:Oracle:$theTNS", 
+	("dbi:Oracle:$theTNS", 
 	 $theUser,
 	 $thePass,
 	 {RaiseError => 0,
@@ -4068,17 +4281,25 @@ sub setDefConfig () {
 #    $main::db_info{$theTNS}[$main::cDB_PREFGROUP] = $main::cDEF_GRP_NAME;
     setPrefGroup ($theTNS, $main::cDEF_GRP_NAME);
 
+    $main::pref_groups{$main::cDEF_GRP_NAME}[0] = $theTNS;
+
+
     #
     # log any errors
     #
     if (defined ($DBI::errstr)) {
-	log_message_wtime ("$DBI::errstr\n");
+	logMessageWTime ("$DBI::errstr\n");
     }
 
-    $main::config_info{default}{up}[$main::cSTATUS] = $main::config_info{factory}{up}[$main::cSTATUS];
-    $main::config_info{default}{up}[$main::cUPD_TIME] = $main::config_info{factory}{up}[$main::cUPD_TIME];
-
-#    print ("End of setDefConfig...\n");
+    setConfig ("default","up", undef, undef, undef);
+    setConfig ("default","redolog", undef, undef, undef);
+    setConfig ("default","rollback", undef, undef, undef);
+    setConfig ("default","slowsql", undef, undef, undef);
+    setConfig ("default","hitratios", undef, undef, undef);
+    setConfig ("default","extents", undef, undef, undef);
+    setConfig ("default","latch", undef, undef, undef);
+    setConfig ("default","fragmentation", undef, undef, undef);
+    setConfig ("default","tablespace", undef, undef, undef);
 
 }
 
@@ -4091,13 +4312,14 @@ sub shouldUpdateService ($$$) {
     my ($inPrefGroup, $inService, $inTime) = @_;
 
 
+    debugMessage ("shouldUpdateService: $inPrefGroup, $inService, $inTime\n",2);
     #
     # using pref group prefs, if defined
     #
     if ((defined ($main::config_info{$inPrefGroup}{$inService}[$main::cUPD_TIME])) && 
 	(($inTime == 0) ||
 	 ($inTime % $main::config_info{$inPrefGroup}{$inService}[$main::cSTATUS] == 0))) {
-#	print ("Will update S:$inService T:$inTime I:$main::config_info{$inPrefGroup}{$inService}[$main::cSTATUS]\n");
+	debugMessage ("Will update S:$inService T:$inTime I:$main::config_info{$inPrefGroup}{$inService}[$main::cSTATUS]\n", 2);
 	return 1;
     }
 
@@ -4206,7 +4428,7 @@ sub getStatus ($$$) {
                                         $serviceAlert, $inTNS);
     }
 
-#    print ("TNS:$inTNS ST:$theStatus SV:$inService\n");
+    debugMessage ("getStatus:$inTNS, $inService, $theStatus\n",2);
     return $theStatus;
 
 }
@@ -4309,6 +4531,7 @@ sub isValidTNS ($) {
 sub doDBChecks ($) {
     my ($forceUpdate) = @_;
 
+
     #
     # iterate on each database
     #
@@ -4324,7 +4547,8 @@ sub doDBChecks ($) {
 #	doNotificationOld ($tnsKey, $dayMinutes);
 	doNotification ($tnsKey, $dayMinutes);
     }
-    
+
+    debugMessage ("doDBChecks, generating index...\n", 2);
     
     #
     # need to open and close this file inside the doPage routine
@@ -4341,7 +4565,8 @@ sub doDBChecks ($) {
 #-----------------------------------------------------------------------
 sub writePidFile () {
 
-    my $pid_file = new IO::File ">$main::PID_FILE_NAME";
+    my $pid_file = new IO::File ">$main::PID_FILE_NAME"
+	or logMessageWTime ("Failed to write pid to file: $main::PID_FILE_NAME - $!\n");
 
     if (defined ($pid_file)) {
 	print $pid_file ($$);
@@ -4349,7 +4574,7 @@ sub writePidFile () {
     }
 
 #    print $pid_file ($main::KARMA_PID);
-#    log_message ("Wrote to PID:$$ to file:$main::PID_FILE_NAME\n");
+#    logMessage ("Wrote to PID:$$ to file:$main::PID_FILE_NAME\n");
 }
 
 
@@ -4447,7 +4672,7 @@ sub getCurrStatus ($$) {
 #
 #
 #-----------------------------------------------------------------------
-sub getEmailSize ($$) {
+sub getEmailSize ($) {
     my ($inPrefGroup) = @_;
     return $main::cNOTIFY_MSG;
 }
@@ -4529,9 +4754,103 @@ sub shouldNotify ($) {
     return $retNotify;
 }
 
+#-----------------------------------------------------------------------
+#
+#
+#
+#-----------------------------------------------------------------------
+sub logMessageExit ($) {
+    my ($message) = @_;
+
+    logMessageWTime ($message);
+    exitKarma ();
+}
+
+#-----------------------------------------------------------------------
+#
+#
+#
+#-----------------------------------------------------------------------
+sub checkForDBs () {
+    my $validTNS = 0;
+    my $key = undef;
+    foreach $key (keys %main::db_info) {
+	if (defined $key) {
+	    $validTNS = 1;
+	    return;
+	}
+    }
+
+    if ($validTNS == 0) {
+	logMessageExit ("No valid databases found (check tnsnames.ora).\n");
+    }
+}
+
+
 #
 # use this to comment out sections of code
 #
-=secret
+
+
+#sub getLogFileName () {
+#    my $fileName = tryOption ($opt_l);
+#    if (not (defined $fileName)) {
+#	$fileName = "$main::KARMA_HOME$main::PATH_DELIM" . 'karma.log';
+#    }
+#    return $fileName;
+#}
+
+#sub tryOption ($) {
+#    my ($inOption) = @_;
+#    my $fileName = undef;
+#    if (defined ($inOption)) {
+
+#	if ($inOption =~ /^\/.*$/) {
+#	    $fileName = $inOption;
+#	} else {
+#	    if ($inOption =~ /^\..*$/) {
+#		$inOption =~ s/^\.//;
+#	    }
+#	    $fileName = $main::wd . $main::PATH_DELIM . $inOption;
+#	}
+#    }
+#    return $fileName;
+#}
+
+
+
+#---------------------------------
+#
+# Plain Old Documentation (pod...)
+#
+#---------------------------------
+
+=pod
+
+=head1 NAME
+
+Karma - karmad
+
+=head1 DESCRIPTION
+
+karmad is the main karma daemon.  It wakesup periodically to
+check your database for various statistics, generating a new
+karma.html each time.
+
+=head1 SYNOPSIS
+
+Generally you won't run karma by invoking karmad directly.  One
+exception to this rule is if you want to turn on debugging with
+C<-d>.  In most other cases, use karmactl to invoke this daemon.
+
+=head1 NOTES
+
+After you've edited your config file, invoke karmad for testing
+and debugging as follows:
+
+C<$ ./karmad -d 2 -c test.conf -l test.log>
+
+Check test.log for details.
 
 =cut
+

@@ -1,0 +1,163 @@
+=head1 NAME
+
+Karma - Installation Guide
+
+=for html <body bgcolor="#3399cc">
+
+=head1 Standard Install
+
+At this time, unfortunately, I haven't had a chance to build an 
+install script.  Partly this is because I haven't completely
+thought out how it should be installed.  Eventually karma will
+include a standard perl install script.
+
+=head1 General Instructions
+
+Currently, following the directions in the 
+
+=for html <A HREF=quickstart.html>Quickstart Guide</A>
+
+should explain to you how to get started.  See the 
+
+=for html <A HREF=config.html>Configuration Guide</A> 
+
+for more information on how to create a
+
+=for html <A HREF=config.html#user>
+
+read-only user
+
+=for html </A>
+
+for karma in your database, to
+
+=for html <A HREF=config.html#conf>
+
+edit the karma.conf file
+
+=for html </A>
+
+, or to use the karmagentd to
+
+=for html <A HREF=config.html#agent>
+
+monitor the alertlog
+
+=for html </A>
+
+and uptime statistics on your remote database.
+
+=head1 Using Karma with a webserver
+
+Yes, you can use karma with a webserver, but there isn't too much
+you need to do on the karma end of things.  Basically karma
+generates a set of html pages.  These by default go into "doc_root"
+in the karma software directory, but this path can be changed via
+the C<-k> option to karmad when you start it.  Specify a valid path,
+and it will write the files there.  Be sure to move the existing
+karma documentsfrom doc_root to that location, and create
+directories named "docs","help", "images", and "info" there as
+well.
+
+=head1 Installing Perl
+
+Installing perl has become *MUCH* easier over the years, so don't
+be so afraid of installing it on your own system.  You can install
+it from
+
+=for html<A HREF=http://www.perl.com/pub/language/info/software.html#sourcecode>
+
+source
+
+=for html </A>
+
+=for html <A HREF=http://www.perl.com/pub/language/info/software.html#binary>
+
+binaries
+
+=for html </A>
+
+Installing on linux systems (most of which come with perl anyway)
+is often as simple as:
+
+C<$ gunzip < stable.tar.gz | tar xvf ->
+
+C<$ cd perl5.005_03>C<$ ./configure>
+
+C<$ make>and as rootC<$ make install>
+
+=head1 Installing DBI
+
+It's pretty straightforward on most machines where Perl is
+already installed.  Download the latest DBD-Oracle from your favorite
+
+=for html <A HREF=http://www.perl.com/CPAN/SITES.html>
+
+CPAN Site
+
+=for html </A>
+
+, then follow these steps:
+
+C<$ gunzip < DBI-1.13.tar.gz | tar xvf ->
+
+C<$ cd DBI-1.13>C<$ perl Makefile.PL>
+
+C<$ make>C<$ make test>then as root:
+
+C<$ make install>
+
+=head1 Installing DBD-Oracle
+
+It's pretty straightforward on most machines where Perl is
+already installed.  Download the latest DBD-Oracle from your
+favorite
+
+=for html <A HREF=http://www.perl.com/CPAN/SITES.html>
+
+CPAN Site
+
+=for html </A>
+
+, set your environment variables ORACLE_HOME, ORACLE_SID, be
+sure $ORACLE_HOME/bin is in your path, and that $ORACLE_HOME/lib
+is in your library path then followthese steps:
+
+C<$ gunzip < DBD-Oracle-1.03.tar.gz | tar xvf ->
+
+C<$ cd DBD-Oracle-1.03>
+
+C<$ perl Makefile.PL>
+
+C<$ make>
+
+C<$ make test>
+
+then as root:
+
+C<$ make install>
+
+=head1 Installing Oracle
+
+Of course, none of this would be complete without an Oracle
+database to connect to.  Installing Oracle, however, is really
+beyond the scope of this document.  You can find useful
+documentation at
+
+=for html <A HREF=http://technet.oracle.com/doc/platforms.htm>
+
+technet
+
+=for html </A>
+
+though you'll need to register first.  It's free.  In addition,
+you can find
+
+=for html <A HREF=http://jordan.fortwayne.com/oracle/>
+
+linux specific installation instructions here.
+
+=for html </A>
+
+=cut 
+

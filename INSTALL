@@ -1,0 +1,112 @@
+NAME
+    Karma - Installation Guide
+
+Standard Install
+    At this time, unfortunately, I haven't had a chance to build an
+    install script. Partly this is because I haven't completely
+    thought out how it should be installed. Eventually karma will
+    include a standard perl install script.
+
+General Instructions
+    Currently, following the directions in the
+
+    should explain to you how to get started. See the
+
+    for more information on how to create a
+
+    read-only user
+
+    for karma in your database, to
+
+    edit the karma.conf file
+
+    , or to use the karmagentd to
+
+    monitor the alertlog
+
+    and uptime statistics on your remote database.
+
+Using Karma with a webserver
+    Yes, you can use karma with a webserver, but there isn't too
+    much you need to do on the karma end of things. Basically karma
+    generates a set of html pages. These by default go into
+    "doc_root" in the karma software directory, but this path can be
+    changed via the `-k' option to karmad when you start it. Specify
+    a valid path, and it will write the files there. Be sure to move
+    the existing karma documentsfrom doc_root to that location, and
+    create directories named "docs","help", "images", and "info"
+    there as well.
+
+Installing Perl
+    Installing perl has become *MUCH* easier over the years, so
+    don't be so afraid of installing it on your own system. You can
+    install it from
+
+    source
+
+    binaries
+
+    Installing on linux systems (most of which come with perl
+    anyway) is often as simple as:
+
+    `$ gunzip < stable.tar.gz | tar xvf -'
+
+    `$ cd perl5.005_03'`$ ./configure'
+
+    `$ make'and as root`$ make install'
+
+Installing DBI
+    It's pretty straightforward on most machines where Perl is
+    already installed. Download the latest DBD-Oracle from your
+    favorite
+
+    CPAN Site
+
+    , then follow these steps:
+
+    `$ gunzip < DBI-1.13.tar.gz | tar xvf -'
+
+    `$ cd DBI-1.13'`$ perl Makefile.PL'
+
+    `$ make'`$ make test'then as root:
+
+    `$ make install'
+
+Installing DBD-Oracle
+    It's pretty straightforward on most machines where Perl is
+    already installed. Download the latest DBD-Oracle from your
+    favorite
+
+    CPAN Site
+
+    , set your environment variables ORACLE_HOME, ORACLE_SID, be
+    sure $ORACLE_HOME/bin is in your path, and that $ORACLE_HOME/lib
+    is in your library path then followthese steps:
+
+    `$ gunzip < DBD-Oracle-1.03.tar.gz | tar xvf -'
+
+    `$ cd DBD-Oracle-1.03'
+
+    `$ perl Makefile.PL'
+
+    `$ make'
+
+    `$ make test'
+
+    then as root:
+
+    `$ make install'
+
+Installing Oracle
+    Of course, none of this would be complete without an Oracle
+    database to connect to. Installing Oracle, however, is really
+    beyond the scope of this document. You can find useful
+    documentation at
+
+    technet
+
+    though you'll need to register first. It's free. In addition,
+    you can find
+
+    linux specific installation instructions here.
+

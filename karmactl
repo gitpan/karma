@@ -29,7 +29,7 @@
 #
 # current version
 #
-#$VERSION="0.9.0";
+
 require 5.004;
 use strict;
 use Getopt::Std;
@@ -49,22 +49,26 @@ $main::KARMA = "karmad";
 # look for karmad in the main::KARMA_HOME
 #
 if ((defined $ENV{KARMA_HOME}) && 
-    (-e "$ENV{KARMA_HOME}/karmad") &&
-    (-x "$ENV{KARMA_HOME}/karmad")) {
-    $main::KARMA = "$ENV{KARMA_HOME}/karmad";
+    (-e "$ENV{KARMA_HOME}$main::PATH_DELIM" . 'karmad') &&
+    (-x "$ENV{KARMA_HOME}$main::PATH_DELIM" . 'karmad')) {
+    $main::KARMA = "$ENV{KARMA_HOME}$main::PATH_DELIM" . 'karmad';
 
 # 
 # look for it in the current directory
 #
-} elsif ((-e "./karmad") && (-x "./karmad")) {
-    $main::KARMA = "./karmad";
+} elsif ((-e '.' . "$main::PATH_DELIM" . 'karmad') && (-x '.' . "$main::PATH_DELIM" . 'karmad')) {
+    $main::KARMA = '.' . "$main::PATH_DELIM" . 'karmad';
 }
 
 
 
-$main::KARMA_FIFO_NAME = "$main::KARMA_HOME/.karmafifo";
-$main::KARMA_PID_FILE = "$main::KARMA_HOME/.karma.pid";
-$main::KARMA_DOC="$main::KARMA_HOME/doc_root";
+$main::KARMA_FIFO_NAME = "$main::KARMA_HOME$main::PATH_DELIM" . '.karmafifo';
+$main::KARMA_PID_FILENAME = "$main::KARMA_HOME$main::PATH_DELIM" . '.karma.pid';
+$main::KARMA_DOC="$main::KARMA_HOME$main::PATH_DELIM" . 'doc_root';
+
+#
+# needs windows support
+#
 $main::DEL_CMD = "/bin/rm";
 
 
@@ -83,10 +87,10 @@ $main::opt_f = undef;
 getopts('hspfrtwvi:k:l:c:d');
 
 if (defined ($main::opt_w)) {
-    print_warranty ();
+    printWarranty ();
 }
 if (defined ($main::opt_s)) {
-    start_karma ();
+    startKarma ();
 }
 
 #
@@ -100,35 +104,35 @@ if (defined ($main::opt_i)) {
 }
 
 if (defined ($main::opt_f)) {
-    refresh_karma ();
+    refreshKarma ();
 }
 if (defined ($main::opt_p)) {
-    stop_karma ();
+    stopKarma ();
 }
 if (defined ($main::opt_r)) {
-    reload_karma ();
+    reloadKarma ();
 }
 if (defined ($main::opt_t)) {
-    status_karma ();
+    statusKarma ();
 }
 if (defined ($main::opt_v)) {
-    print_version ();
+    printVersion ();
 }
 if (defined ($main::opt_d)) {
     if (defined $main::opt_k) {
 	$main::KARMA_DOC=$main::opt_k;
     }
-    cleanup_karma ();
+    cleanupKarma ();
 }
 
-print_help ();
+printHelp ();
 
 #-----------------------------------------------------------------------
 #
 #
 #
 #-----------------------------------------------------------------------
-sub print_help () {
+sub printHelp () {
     print 
 	"\n",
 	" -h print help and exit\n",
@@ -154,7 +158,7 @@ sub print_help () {
 #
 #
 #-----------------------------------------------------------------------
-sub start_karma () {
+sub startKarma () {
 
     print ("Starting karma daemon");
  
@@ -180,8 +184,11 @@ sub start_karma () {
 #	system ($COMMAND);
 #    } 
 
-    system ($COMMAND);
-
+    if ($main::WINDOWS == 0) {
+	system ($COMMAND);
+    } else {
+	startWin32Process ($COMMAND);
+    }
     #
     # give karma messages a chance to print
     #
@@ -196,7 +203,7 @@ sub start_karma () {
 # get main::KARMA_PID from lock file, send kill signal (TERM)
 #
 #-----------------------------------------------------------------------
-sub stop_karma () {
+sub stopKarma () {
 
     if ($main::KARMA_PID > 0) {
 	print ("Stopping karma daemon - pid:$main::KARMA_PID...\n");
@@ -216,7 +223,7 @@ sub stop_karma () {
 # give karmad the USR2 signal to make all service statuses refresh
 #
 #-----------------------------------------------------------------------
-sub refresh_karma () {
+sub refreshKarma () {
 
     if ($main::KARMA_PID > 0) {
 	print ("Refreshing karma service statuses pid:$main::KARMA_PID...\n");
@@ -235,7 +242,7 @@ sub refresh_karma () {
 # get main::KARMA_PID from lock file, send USR1 signal
 #
 #-----------------------------------------------------------------------
-sub status_karma () {
+sub statusKarma () {
 
     my $line = "";
     if ($main::KARMA_PID > 0) {
@@ -261,14 +268,14 @@ sub status_karma () {
 # delete dynamically generated files in the karma doc_root directory
 #
 #-----------------------------------------------------------------------
-sub cleanup_karma () {
+sub cleanupKarma () {
 
     my $COMMAND = "";
     if (-d $main::KARMA_DOC) {
 	if (-w $main::KARMA_DOC) {
-	    $COMMAND = "$main::DEL_CMD $main::KARMA_DOC/karma.html";
+	    $COMMAND = "$main::DEL_CMD $main::KARMA_DOC$main::PATH_DELIM" . 'karma.html';
 	    system ($COMMAND);
-	    $COMMAND = "$main::DEL_CMD $main::KARMA_DOC/info/*.html";
+	    $COMMAND = "$main::DEL_CMD $main::KARMA_DOC$main::PATH_DELIM" . 'info' . "$main::PATH_DELIM" . '*.html';
 	    system ($COMMAND);
 	} else {
 	    print ("Cannot delete dynamic karma files: $main::KARMA_DOC\n");
@@ -286,7 +293,7 @@ sub cleanup_karma () {
 #
 #
 #-----------------------------------------------------------------------
-sub reload_karma () {
+sub reloadKarma () {
 
     if ($main::KARMA_PID > 0) {
 	print ("Reloading karma.conf config pid:$main::KARMA_PID...\n");
@@ -309,10 +316,10 @@ sub get_pid () {
 
     my $line = undef;
 
-    $main::KARMA_PID_file = new IO::File "<$main::KARMA_PID_FILE";
+    $main::KARMA_PID_FILE = new IO::File "<$main::KARMA_PID_FILENAME";
     if (defined ($main::KARMA_PID_FILE)) {
-	$line = <$main::KARMA_PID_file>;
-	close ($main::KARMA_PID_file);
+	$line = <$main::KARMA_PID_FILE>;
+	close ($main::KARMA_PID_FILE);
 	if (defined ($line)) {
 	    chomp ($line);
 	    $line =~ s/\N//g;
@@ -323,3 +330,72 @@ sub get_pid () {
     }
     return 0;
 }
+
+#-----------------------------------------------------------------------
+#
+# startWin32Process
+#
+#-----------------------------------------------------------------------
+sub startWin32Process ($) {
+    my ($inCommand) = @_;
+
+    system("start perl $inCommand");
+
+#
+# create a process in Windows
+# (may use this if the above doesn't work...)
+#
+#Win32::Process::Create(
+#  $oProcess, $sProg,
+#  basename( $sProg ) . " " . $sParams,
+#  0,
+#  DETACHED_PROCESS,
+#  "."
+#);
+
+}
+
+
+
+#---------------------------------
+#
+# Plain Old Documentation (pod...)
+#
+#---------------------------------
+
+=pod
+
+=head1 NAME
+
+Karma - karmactl
+
+=head1 DESCRIPTION
+
+The karmactl utility is used to control the main karma daemon
+karmad.  Use it to start and stop the daemon, return status
+of a running daemon, or reread the config file.
+
+=head1 SYNOPSIS
+
+Invoke the karmactl utility from the command line as follows:
+
+C<$ ./karmactl -s>
+
+use the C<-t> option to get the status of a running daemon, or
+the C<-r> option to reread the config file:
+
+C<$ ./karmactl -r>
+
+When you want to stop the karmad daemon, you can do it like this:
+
+C<$ ./karmactl -p>
+
+Note that these commands are dependant on the process id of the
+current running process.  If for some reason that pid wasn't 
+written to the .karma.pid file, you may specify it manually
+like this:
+
+C<$ ./karmactl -p -i 2545>
+
+=cut
+

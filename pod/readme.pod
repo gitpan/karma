@@ -1,0 +1,94 @@
+=head1 NAME
+
+Karma - Readme
+
+=for html <body bgcolor="#3399cc">
+
+=head1 DESCRIPTION
+
+To get started with karma, first edit a config file.  For starters,
+use the basic.conf file.  Edit it for the databases you'd like to
+connect to.
+
+Next set the $KARMA_HOME environment variable.  This specifies where
+karma will look for the karma.conf file (otherwise it will look
+in the current directory).  Also, karma will store the .karma.pid,
+and .karmafifo files here.
+
+Next start karmad running.  You can use the -h option for help, or
+just start it like this:
+
+=over 4
+
+=item
+C<$ ./karmactl -s>
+
+=back
+
+=head1 karmactl
+
+start, stop, and query a running karmad daemon.  use -h option for help
+
+=head1 karmad
+
+main karma utility.  You probably won't run this directly.
+
+=head1 karma.pm
+
+common code for karmad, karmactl, and karmagentd.
+
+=head1 karmagentd
+
+Run this on each target machine for which you want to monitor the
+alert.log and OS stats.
+
+=head1 basic.conf
+
+This is the simplest of karma config files.  Edit it to get started.
+
+=head1 prefgroups.conf
+
+This config file demonstrates how to use preference groups with karma.
+
+=head1 karma.conf
+
+A well documented fully featured karma config file.
+
+=head1 doc_root/images
+
+images needed by the html files
+
+=head1 doc_root/help
+
+directory containing static html help files
+
+=head1 doc_root/info
+
+directory which will contain more info files, giving information
+about the particular statistic, and it's status.
+
+=head1 doc_root/docs
+
+Online html documentation for karma.
+
+=head1 sql/karma_user.sql
+
+auxillary sql script for creating a special read-only "karma"
+user to run the tool as.  
+
+=head1 sql/karma_objs.sql
+
+auxillary sql script for creating additional objects
+KARMA_ALERTLOG_ERRORS, and KARMA_OS_STATS for collecting info
+on the database server
+
+=head1 doc_root
+
+This is the document root where your html files will be generated.
+If you're going to use karma with a webserver, put this in your 
+web doc_root, perhaps naming it karma.  Use the -k option to
+karmactl to specify it's location.
+
+
+=cut
+

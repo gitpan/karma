@@ -1,8 +1,0 @@
-
-sub this_is_a_test () {
-
-  print ("Well, if this is printed, then all is well.\n");
-  print ("Well, if this is printed, then all is well.\n");
-  print ("Well, if this is printed, then all is well.\n");
-
-}

@@ -1,0 +1,17 @@
+=head1 NAME
+
+Karma - Release Notes
+
+=for html <body bgcolor="#3399cc">
+
+=head1 DESCRIPTION
+
+Please realise that this is a first release of karma, so there are
+sure to be bugs, and lots of issues on various platforms.  Please
+send me comments and/or bug reports.  Keep checking the 
+
+=for html <a href="http://www.panix.com/~shull/karma">karma homepage</a>
+
+for details as there may be a user and developer email list before long.
+
+=cut

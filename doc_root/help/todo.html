@@ -1,0 +1,74 @@
+<HTML>
+<HEAD>
+<TITLE>Karma - TODO</TITLE>
+<LINK REV="made" HREF="mailto:root@porky.devel.redhat.com">
+</HEAD>
+
+<BODY>
+
+<!-- INDEX BEGIN -->
+
+<UL>
+
+	<LI><A HREF="#NAME">NAME</A>
+	<LI><A HREF="#DESCRIPTION">DESCRIPTION</A>
+	<LI><A HREF="#1_0_0">1.0.0</A>
+	<LI><A HREF="#Possible_For_1_0">Possible For 1.0</A>
+</UL>
+<!-- INDEX END -->
+
+<HR>
+<P>
+<H1><A NAME="NAME">NAME</A></H1>
+<P>
+Karma - TODO
+
+<body bgcolor="#3399cc">
+
+<P>
+<HR>
+<H1><A NAME="DESCRIPTION">DESCRIPTION</A></H1>
+<P>
+This document details the remaining tasks to finish for particular versions
+of karma.  
+
+<P>
+<HR>
+<H1><A NAME="1_0_0">1.0.0</A></H1>
+<DL>
+<DT><STRONG><A NAME="item_o">o std perl installer</A></STRONG><DD>
+<DT><STRONG>o further karmagentd testing, code cleanup (alert.log)</STRONG><DD>
+<DT><STRONG>o db down respects unmonitored services</STRONG><DD>
+<DT><STRONG>o info pages include warning, alert values</STRONG><DD>
+<DT><STRONG>o remaining Win32 problems - valid services no go</STRONG><DD>
+<DT><STRONG>o a tbsp with an autoextend datafile should always be green</STRONG><DD>
+<DT><STRONG>o check MIN_WAKEUP</STRONG><DD>
+<DT><STRONG>o check factory defaults</STRONG><DD>
+</DL>
+<P>
+<HR>
+<H1><A NAME="Possible_For_1_0">Possible For 1.0</A></H1>
+<DL>
+<DT><STRONG>o should checking status, or forcing refresh send out emails?</STRONG><DD>
+<DT><STRONG>o 7.x issues</STRONG><DD>
+<DL>
+<DT><STRONG><A NAME="item__">- no autoextend column</A></STRONG><DD>
+<DT><STRONG>- first_time column in v$log is varchar2 (date in 8.x</STRONG><DD>
+</DL>
+<DT><STRONG>o NT issues</STRONG><DD>
+<DL>
+<DT><STRONG>- signal handling</STRONG><DD>
+<DT><STRONG>- named pipe</STRONG><DD>
+<DT><STRONG>- backgrounding job</STRONG><DD>
+<DT><STRONG>- test mail sending (Mail::Send seems to exist and work...)</STRONG><DD>
+</DL>
+<DT><STRONG>o notify full includes url to info page</STRONG><DD>
+<DL>
+<DT><STRONG>- this will require a new line in the config file like
+  SERVER:http://www.something.com/karma onto which the rest
+  can be appended</STRONG><DD>
+</DL>
+</DL>
+</BODY>
+
+</HTML>

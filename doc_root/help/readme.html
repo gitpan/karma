@@ -1,0 +1,153 @@
+<HTML>
+<HEAD>
+<TITLE>Karma - Readme</TITLE>
+<LINK REV="made" HREF="mailto:root@porky.devel.redhat.com">
+</HEAD>
+
+<BODY>
+
+<!-- INDEX BEGIN -->
+
+<UL>
+
+	<LI><A HREF="#NAME">NAME</A>
+	<LI><A HREF="#DESCRIPTION">DESCRIPTION</A>
+	<LI><A HREF="#karmactl">karmactl</A>
+	<LI><A HREF="#karmad">karmad</A>
+	<LI><A HREF="#karma_pm">karma.pm</A>
+	<LI><A HREF="#karmagentd">karmagentd</A>
+	<LI><A HREF="#basic_conf">basic.conf</A>
+	<LI><A HREF="#prefgroups_conf">prefgroups.conf</A>
+	<LI><A HREF="#karma_conf">karma.conf</A>
+	<LI><A HREF="#doc_root_images">doc_root/images</A>
+	<LI><A HREF="#doc_root_help">doc_root/help</A>
+	<LI><A HREF="#doc_root_info">doc_root/info</A>
+	<LI><A HREF="#doc_root_docs">doc_root/docs</A>
+	<LI><A HREF="#sql_karma_user_sql">sql/karma_user.sql</A>
+	<LI><A HREF="#sql_karma_objs_sql">sql/karma_objs.sql</A>
+	<LI><A HREF="#doc_root">doc_root</A>
+</UL>
+<!-- INDEX END -->
+
+<HR>
+<P>
+<H1><A NAME="NAME">NAME</A></H1>
+<P>
+Karma - Readme
+
+<body bgcolor="#3399cc">
+
+<P>
+<HR>
+<H1><A NAME="DESCRIPTION">DESCRIPTION</A></H1>
+<P>
+To get started with karma, first edit a config file. For starters, use the
+basic.conf file. Edit it for the databases you'd like to connect to.
+
+<P>
+Next set the <CODE>$KARMA_HOME</CODE> environment variable. This specifies
+where karma will look for the karma.conf file (otherwise it will look in
+the current directory). Also, karma will store the .karma.pid, and
+.karmafifo files here.
+
+<P>
+Next start karmad running. You can use the -h option for help, or just
+start it like this:
+
+<DL>
+<DT><STRONG><A NAME="item__">$ ./karmactl -s</A></STRONG><DD>
+</DL>
+<P>
+<HR>
+<H1><A NAME="karmactl">karmactl</A></H1>
+<P>
+start, stop, and query a running karmad daemon. use -h option for help
+
+<P>
+<HR>
+<H1><A NAME="karmad">karmad</A></H1>
+<P>
+main karma utility. You probably won't run this directly.
+
+<P>
+<HR>
+<H1><A NAME="karma_pm">karma.pm</A></H1>
+<P>
+common code for karmad, karmactl, and karmagentd.
+
+<P>
+<HR>
+<H1><A NAME="karmagentd">karmagentd</A></H1>
+<P>
+Run this on each target machine for which you want to monitor the alert.log
+and OS stats.
+
+<P>
+<HR>
+<H1><A NAME="basic_conf">basic.conf</A></H1>
+<P>
+This is the simplest of karma config files. Edit it to get started.
+
+<P>
+<HR>
+<H1><A NAME="prefgroups_conf">prefgroups.conf</A></H1>
+<P>
+This config file demonstrates how to use preference groups with karma.
+
+<P>
+<HR>
+<H1><A NAME="karma_conf">karma.conf</A></H1>
+<P>
+A well documented fully featured karma config file.
+
+<P>
+<HR>
+<H1><A NAME="doc_root_images">doc_root/images</A></H1>
+<P>
+images needed by the html files
+
+<P>
+<HR>
+<H1><A NAME="doc_root_help">doc_root/help</A></H1>
+<P>
+directory containing static html help files
+
+<P>
+<HR>
+<H1><A NAME="doc_root_info">doc_root/info</A></H1>
+<P>
+directory which will contain more info files, giving information about the
+particular statistic, and it's status.
+
+<P>
+<HR>
+<H1><A NAME="doc_root_docs">doc_root/docs</A></H1>
+<P>
+Online html documentation for karma.
+
+<P>
+<HR>
+<H1><A NAME="sql_karma_user_sql">sql/karma_user.sql</A></H1>
+<P>
+auxillary sql script for creating a special read-only ``karma'' user to run
+the tool as.  
+
+<P>
+<HR>
+<H1><A NAME="sql_karma_objs_sql">sql/karma_objs.sql</A></H1>
+<P>
+auxillary sql script for creating additional objects KARMA_ALERTLOG_ERRORS,
+and KARMA_OS_STATS for collecting info on the database server
+
+<P>
+<HR>
+<H1><A NAME="doc_root">doc_root</A></H1>
+<P>
+This is the document root where your html files will be generated. If
+you're going to use karma with a webserver, put this in your web doc_root,
+perhaps naming it karma. Use the -k option to karmactl to specify it's
+location.
+
+</BODY>
+
+</HTML>

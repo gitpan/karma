@@ -1,0 +1,330 @@
+
+=head1 NAME
+
+Karma - Services Help
+
+=head1 DESCRIPTION
+
+This document details each of the services monitored by karma, and
+how to configure monitoring for them.
+
+=for html <body bgcolor="#3399cc">
+
+=head1 Alert Log Errors
+
+The Oracle alert.log facility is similar to that of the unix syslog
+facility.  It is used to report various system messages like startup
+and shutdown, as well as checkpoints, redo-log switches, and most 
+importantly ORA-xxxx errors.
+
+Monitoring ORA-xxxx errors is an important part of the DBA's
+responsibility, and Karma aims to ease that burden by watching
+the alert.log for you.
+
+Karma monitors databases remotely, and as such cannot directly
+access an OS level file such as the alert.log.   The solution
+(if you're interested in monitoring the alert.log of remote
+databases) is the run an additional script which comes with Karma
+on any machine whose alert.log you wish to monitor.  Essentially
+it watches the file for changes, and writes any ORA-xxxx errors
+to a table.  Karma then just watches this table for new entries.
+Checkout the karmagentd for more information on configuring that
+end of things.
+
+Beyond that, configure alertlog monitoring like you would any
+other facility in Karma.  Here's an example:
+
+I<alertlog:X:Y:Z>
+
+Where X is the number of minutes between checks of the alert.log
+monitoring table.  Y is the number of minutes within which to
+consider the error and WARNING level situation.  Z is the number
+of minutes within which to consider the error a WARNING level
+situation.  Here's a recommended configuration:
+
+I<alertlog:15:86400:60>
+
+This tells karma to monitor every 15 minutes, consider any ORA-xxxx
+errors within a day to be a WARNING situation, and any ORA-xxxx
+errors in the last hour to be an ALERT situation.
+
+=head1 Initialization Parameters
+
+This section displays the Oracle initialization parameters from 
+the v$parameter data dictionary view.  This section is not
+configurable, and is always displayed.
+
+=head1 Extents
+
+Extents monitoring in our case is different from fragmentation.  In
+this case we're merely monitoring objects which are nearing their
+maxextents, or objects which may not be able to allocate their next
+extent for various reasons.
+
+Configuring extents monitoring, consider how early you want to be
+warned or alerted of a situation.  If your tables become populated
+rapidly, you may want to know earlier when they require adjustments
+or rebuilding.  Here's an example:
+
+I<extents:15:2:1>
+
+This directs karma to check every 15 minutes for extents which are 
+within 2 extents of their max (WARNING), or 1 extent (ALERT).  The
+first value is always the WARNING value, and the second ALERT.  In
+addition, objects may have their pctincrease set above 0.  If that's
+the case, karma will also check in a similar manner for objects
+which although they may not be nearing their maxextents value,
+are nevertheless nearing a situation where they will not be able
+to allocate another extent.
+
+=head1 Fragmentation
+
+Fragmentation occurs at the table (heap) or index (b-tree) level.
+Essentially when you create objects in a tablespace, if you set
+them all with different storage parameters, or a pctincrease
+which is non-zero you'll likely cause tablespace fragmentation
+of the objects contained therein.
+
+Fragmentation can be resolved by rearranging objects in other
+tablespaces, rebuilding with different storage parameters,
+or export/import. Ideally though, it would be best to avoid
+fragmentation altogether. How can we accomplis this? Oracle
+recommends in their latest whitepaper on the subject "How To
+Stop Defragmenting and Start Living" to avoid fragmentation altogether
+by creating tablespaces with with uniform extent sizes, and leaving objects
+to assume the default storage params when they're created.
+For more information,
+check: 
+
+=for html <a href="http://support.oracle.com/cgi-bin/cr/getfile_cr.cgi?239049">How To Stop Defragmentating and Start Living.</a>
+
+At any rate, karma can be setup to be strict or not so strict. Configure karma
+for fragmentation monitoring as follows:
+
+I<fragmentation:X:Y:Z>
+
+Where X, as usual is frequency in minutes at which to check for
+fragmentation.  Y is the WARNING value, and Z is the ALERT value.
+
+=head1 Hit Ratios
+
+Hitratios are a very way to get a big picture of how well your 
+database is performing.  Essentially a hitratio gives you a ratio
+with which to quickly judge how many I/O requests are being 
+satisfied via memory vs I/O requests which actually require disk
+I/O.
+
+We monitor data block buffer hitratio, dictionary cache hitratio
+and so on.  Configure hitratio monitoring as follows:
+
+I<hitratios:5:95:70>
+
+In this example we're checking every 5 minutes.  If the hitratio is
+below 95%, we're at WARNING level, and if it drops below 70%, we're 
+at ALERT level.
+
+=head1 Latch Contention
+
+No help yet.
+
+Here's how you would configure it:
+
+I<latch:5:X:Y>
+
+In this example we're checking every 5 minutes.
+We're flagging a WARNING if the load average goes above X
+and an ALERT if it goes above Y.  
+
+=head1 MTS - Multi-Threaded Server
+
+Multi-threaded server is a facility Oracle provides for installations
+which require a very large number of user sessions, typically 500-1000.
+Multi-threaded server reduces the memory requirements, and OS load,
+and is often appropriate for website backend databases.
+
+As with every facility, in order for it to run properly, it needs
+to be monitored to ensure no contention for shared server and 
+dispatcher processes.  Karma provides this type of monitoring
+and can be configured to be easy or strict with it's enforcement
+and alert levels.  Configure it as follows:
+
+I<mts:10:50:75>
+
+Here's we've configured karma to check up on MTS process contention
+every 10 minutes.  If the processes are more than 50% busy, we flag
+a WARNING, and if they're above 75%, we flag an ALERT.
+
+=head1 OS Statistics
+
+Karma provides limited ability to monitor operating system level
+statistics similar to the way it allows monitoring of the alert.log.
+The karmaOSd script also checks via "uptime" the load average
+and percent idle.  As with the alert.log info, this data populates
+a table which karma then monitors for changes.  Checkout the
+karmagentd for more information on configuring that end of things.
+
+Beyond that, configure os monitoring like you would any
+other facility in Karma.  Here's an example:
+
+I<os:1:5:10>
+
+In this example we're checking every minute.  This is not a cpu
+or database intensive task, so checking every minute should be 
+fine.  We're flagging a WARNING if the load average goes above 5
+and an ALERT if it goes above 10.  This will need to be
+configured more liberally for a machine with more processors.
+
+=head1 Redologs
+
+Redologs are where Oracle writes all transactions to, in addition
+to writing to a block of memory, which eventually makes its way
+to datafiles on disk.  Redologs capture INSERT, UPDATE, and DELETE
+activity, and provide security in case the database or machine
+which it runs on crashes.  The are crucial to point in time
+recovery.  Generally we don't want to be switching redo-logs too
+quickly lest we degrade the databases performance. 
+
+Below is an example of how to configure monitoring
+redo-log switching in karma:
+
+I<redolog:5:30:15>
+
+In this example we're monitoring every 5 minutes, and if we're
+switching redologs more often than every 30 minutes, we flag a 
+WARNING, and more often than 15 minutes, we flag an ALERT.
+
+=head1 Deferred Transaction Error Queue
+
+The Oracle deferror queue contains transactions that have failed
+to replicate for various reasons.
+
+Monitoring the deferror queue is crucial to maintaining the
+health of a replicated environment.  Karma monitors the number
+of transactions which have failed with errors.  If it gets too high
+a warning or alert is flagged.
+
+Configure reperror monitoring like you would any
+other facility in Karma.  Here's an example:
+
+I<reperror:X:Y:Z>
+
+Where X is the number of minutes between checks of the deferror queue.
+Y is the number of transactions which will flag a warning, and Z
+is the number of transactions which flags an alert.  Here's a
+recommended configuration:
+
+I<reperror:15:5:25>
+
+This tells karma to monitor the deferror queue every 15 minutes.  If
+there are more than 5 transactions in it, a warning is flag, and if
+more than 25, an alert is flagged.
+
+=head1 Deferred Transaction Queue
+
+The Oracle deftran queue contains transactions bound for remote
+databases.  
+
+Monitoring the deftran queue is crucial to maintaining the
+health of a replicated environment.  Karma monitors the number
+of transactions pending in this queue.  If it gets too high
+a warning or alert is flagged.
+
+Configure repqueue monitoring like you would any
+other facility in Karma.  Here's an example:
+
+I<repqueue:X:Y:Z>
+
+Where X is the number of minutes between checks of the deftran queue.
+Y is the number of transactions which will flag a warning, and Z
+is the number of transactions which flags an alert.  Here's a
+recommended configuration:
+
+I<repqueue:15:100:150>
+
+This tells karma to monitor the deftran queue every 15 minutes.  If
+there are more than 100 transactions in it, a warning is flag, and if
+more than 150, an alert is flagged.
+
+=head1 Rollback Segment Contention
+
+Rollback segment activity is an important facility to monitor
+in your database to maintain reliable performance.  Whenever 
+a transaction modifies a block of data in your database, rollback
+segments provide a read-consistent view to the other sessions in
+the database, giving the a picture of the data before any changes
+were begun.  Additionally, as with redologs, rollback segments are
+important for database recovery.
+
+As with other facilities, we can monitor the hitratio for rollback
+segments to see if we have any problems.  Here's an example of
+how to configure karma to monitor your rollback segments:
+
+I<rollback:10:Y:Z>
+
+In this example we're monitoring every 10 minutes.  Y and Z flag a
+WARNING and ALERT respectively, although it hasn't been finalized
+exactly how this functionality works yet.
+
+=head1 Slow SQL
+
+Slow SQL queries can be one of the most frustrating and 
+performance degrading aspects of database administration.  What
+makes it particularly frustrating is if you have developers
+on your production box.  :-)  
+
+Bad queries manage to find their way into every database.  Karma
+provides a method to be a little more proactive about monitoring
+this activity, and letting you know hopefully before they
+become a problem.  Karma, though, can only help identify those
+queries that are problems, it can't optimize them.  
+
+Optimizing queries can mean anything from analyzing related tables
+and indexes in a schema, providing hints to suggest a better
+execution plan, creating indexes to provide Oracle with a faster
+way to the data, or actually rearranging the query so that 
+perhaps it enables an index that it previously disabled.  
+For more information on all aspects of SQL query tuning
+see 
+
+=for html <A HREF="http://www.amazon.com/exec/obidos/ASIN/0136142311/o/qid=935998933/sr=8-1/002-5520935-5714251">Guy Harrison's book "Oracle SQL High Performance Tuning" - ISBN 0136142311</A>
+
+Here's a configuration example:
+
+I<slowsql:15:100:200>
+
+In this example we're monitoring every 15 minutes.  We're deciding
+that queries that do more than 100 data block I/Os flags a 
+WARNING, and 200 I/Os flags an ALERT.  Adjust this to suit the
+needs of your particular database, and the speed of your disks.
+On an RAID array for example, you might be able to multiply
+these numbers by 5 and still see good performance.  
+
+Please test this before running it on your production database
+and limit how often you run it, as it can be a "slow sql" query.
+
+=head1 Tablespace Quotas
+
+karma allows tablespaces to be monitored like you monitor disk
+capacity with "df" in Unix.  This is above and beyond the extents
+and fragmentation which you can monitor separately.
+
+Here's a configuration example:
+
+I<tablespace:15:85:95>
+
+In this example we're monitoring every 15 minutes, and if we're 85% 
+full we flag a WARNING, and if we're 95% full we flag an alert.
+Be aware, however, that unlike filesystem level datafiles which fill
+bytes at a time, where it's useful to know exactly what % we're at
+tablespaces fill extents at a time.  Extent based datafiles
+may be difficult to monitor as they can fill in arbitrarily 
+large chunks at a time.
+
+=head1 UP Status
+
+This section merely monitors that the database is up and reachable.  
+In addition you can performance statistics from v$sysstat, and 
+other miscellaneous database information.  This section is
+always enabled, and cannot be disabled.
+
+=cut

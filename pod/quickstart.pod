@@ -1,0 +1,42 @@
+=head1 NAME
+
+Karma - Quickstart Guide
+
+=for html <body bgcolor="#3399cc">
+
+=head1 DESCRIPTION
+
+You can get started quickly and easily with karma by following
+these directions.
+
+=head1 Details
+
+=over 4
+
+=item
+o Edit the doc_root/karma.conf file
+
+=item
+o Make sure your database is running, and from the karma
+  directory issue this command:
+
+C<$ ./karmactl -s>
+
+=item
+o Open the file doc_root/index.html with a browser
+  (you don't   necessarily need a webserver at all).
+
+=back
+
+If it isn't obvious already, you have to have Oracle, DBI,
+DBD-Oracle and Perl installed for everything to work.
+
+=for html <A HREF=http://technet.oracle.com>Oracle</A>
+
+=for html <A HREF="http://www.symbolstone.org/technology/perl/DBI/index.html">DBI, DBD-Oracle,</A>
+
+=for html <A HREF="http://www.perl.com">Perl</A>
+
+=for html <A HREF="http://www.activestate.com">Perl for Win32</A>
+
+=cut 

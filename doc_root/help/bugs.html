@@ -1,0 +1,63 @@
+<HTML>
+<HEAD>
+<TITLE>Karma - Bug List</TITLE>
+<LINK REV="made" HREF="mailto:root@porky.devel.redhat.com">
+</HEAD>
+
+<BODY>
+
+<!-- INDEX BEGIN -->
+
+<UL>
+
+	<LI><A HREF="#NAME">NAME</A>
+	<LI><A HREF="#DESCRIPTION">DESCRIPTION</A>
+	<LI><A HREF="#Version_0_9_3">Version 0.9.3</A>
+	<LI><A HREF="#Version_1_0_0">Version 1.0.0</A>
+</UL>
+<!-- INDEX END -->
+
+<HR>
+<P>
+<H1><A NAME="NAME">NAME</A></H1>
+<P>
+Karma - Bug List
+
+<body bgcolor="#3399cc">
+
+<P>
+<HR>
+<H1><A NAME="DESCRIPTION">DESCRIPTION</A></H1>
+<P>
+Common document to organize all outstanding bugs, and associated version
+numbers.
+
+<P>
+<HR>
+<H1><A NAME="Version_0_9_3">Version 0.9.3</A></H1>
+<DL>
+<DT><STRONG><A NAME="item_o">o problems on Win32</A></STRONG><DD>
+<DT><STRONG>o db down doesn't always respect unmonitored services</STRONG><DD>
+</DL>
+<P>
+<HR>
+<H1><A NAME="Version_1_0_0">Version 1.0.0</A></H1>
+<DL>
+<DT><STRONG>o Platform: Linux</STRONG><DD>
+<DT><STRONG>o Oracle Version: 8.0.5.1.0</STRONG><DD>
+<DT><STRONG>o Description: Shutdown a database while Karmad is running and it
+  segfaults.</STRONG><DD>
+<DT><STRONG>o Solution: Rebuild DBD::Oracle with</STRONG><DD>
+<P>
+<CODE>$ perl Makefile.PL -8</CODE>
+
+
+
+<P>
+and rerun karmad. This builds DBD::Oracle with the OCI 7 API, which doesn't
+seem to exhibit this bug.&lt;br&gt;
+
+</DL>
+</BODY>
+
+</HTML>

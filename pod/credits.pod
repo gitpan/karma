@@ -1,0 +1,54 @@
+=head1 NAME
+
+Karma - Credits
+
+=for html <body bgcolor="#3399cc">
+
+=head1 DESCRIPTION
+
+Thanks to all the contributors, testers, and everyone with suggestions
+and ideas.  Without the open source community, the telelists Oracle
+email list, and perl, karma would not be possible.
+
+=head1 AUTHOR
+
+=over
+
+=item
+o Sean Hull      shull@pobox.com
+
+=back 
+
+=head1 CONTRIBUTORS
+
+=over 4
+
+=item
+o Andy Duncan      andy_j_duncan@yahoo.com
+
+=item
+o Dennis Heltzel   DHeltzel@IKON.com
+
+=item
+o D.C.Lawie        duncanl@demon.net
+
+=item
+o Thomas Lowery    tlowery@dsioj.dla.mil
+
+=item
+o Peter Norton     spacey@pobox.com
+
+=item
+o Dennis Taylor    dennis@funkplanet.com
+
+=item
+o Mike Schwern     schwern@pobox.com
+
+=item
+o Eric Whiting     ewhiting@amis.com
+
+=back 
+
+
+=cut
+

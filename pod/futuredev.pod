@@ -1,0 +1,90 @@
+=head1 NAME
+
+Karma - Future Development
+
+=for html <body bgcolor="#3399cc">
+
+=head1 DESCRIPTION
+
+There are already plans to expand on the functionality
+present in Karma.  Here's a list of some of the things I'm
+working on for a future release.
+
+=head1 Details
+
+=over 4
+
+=item
+o lynx browser support (no frames, no tables?)
+
+=item
+o configuration check tool (reads karma.conf file)
+
+=item
+o web interface
+
+=item
+o help page for adding new services
+
+=over 4
+
+=item
+- using karmactl
+
+=item
+- editing karma.conf
+
+=back
+
+=item
+o more services monitored
+
+=over 4
+
+=item
+- hitratios dictcache, rowcache 
+
+=item
+- listener log monitor
+
+=item
+- trace/core file monitor
+
+=item
+- monitor sqlnet performance
+
+=item
+- archive dest directory
+
+=item
+- backup success
+
+=back
+
+=item
+o karma.conf
+
+=over 4
+
+=item
+- specify frames/no frames/no tables support 
+
+=item
+- specify no html pages generated, text only
+
+=item
+- vertical/horizontal arrangement option
+
+=back
+
+=item
+o whom to contact messages
+
+=item
+o look at adding graphing support http://www.munitions.com/~jra/cricket/
+
+=item
+o resetting services, once you've seen them, turn back to green
+  (not sure if this fits into the non-CGI thinking so far...)
+
+=back

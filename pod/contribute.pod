@@ -1,0 +1,38 @@
+=head1 NAME
+
+Karma - Contribute
+
+=for html <body bgcolor="#3399cc">
+
+=head1 DESCRIPTION
+
+Presently Karma is just a one man show.  I'm doing development in
+between various other work.  Right now what I need most is feedback,
+though I'm interested also in hearing other ideas for additions.
+Any comments you have can be sent to 
+
+=for html <A HREF="mailto:shull@pobox.com">Sean Hull</A>.
+
+Some questions I have are:
+
+=over 4
+
+=item
+o What do you think of karma?
+
+=item
+o Do you find it useful?
+
+=item
+o Might you use it to monitor production databases when it's been
+further tested?
+
+=item
+o Have you found any bugs?
+
+=item
+o Do you find any Oracle monitoring to be incorrect or misleading?
+
+=back
+
+=cut
