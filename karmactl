@@ -1,0 +1,337 @@
+#!/usr/bin/perl -w
+#------------------------------------------------------------------
+# 
+# Karma Copyright (C) 1999  Sean Hull <shull@pobox.com>
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+#
+#
+#------------------------------------------------------------------
+#
+# karmactl
+#
+# start, stop, reload, status of running karmad daemon
+#
+#------------------------------------------------------------------
+
+#
+# current version
+#
+$VERSION="0.7.0";
+require 5.004;
+#use strict;
+use Getopt::Std;
+use Socket;
+use IO::File;
+
+$KARMA_HOME = ".";
+if (defined $ENV{KARMA_HOME}) {
+    $KARMA_HOME = $ENV{KARMA_HOME};
+}
+
+#
+# look in the path if all else fails...
+#
+$KARMA = "karmad";
+#
+# look for karmad in the KARMA_HOME
+#
+if ((defined $ENV{KARMA_HOME}) && 
+    (-e "$ENV{KARMA_HOME}/karmad") &&
+    (-x "$ENV{KARMA_HOME}/karmad")) {
+    $KARMA = "$ENV{KARMA_HOME}/karmad";
+
+# 
+# look for it in the current directory
+#
+} elsif ((-e "./karmad") && (-x "./karmad")) {
+    $KARMA = "./karmad";
+}
+
+
+
+$KARMA_FIFO_NAME = "$KARMA_HOME/.karmafifo";
+$KARMA_PID_FILE = "$KARMA_HOME/.karma.pid";
+$KARMA_DOC="$KARMA_HOME/doc_root";
+$DEL_CMD = "/bin/rm";
+
+
+#$opt_h = 0;
+$opt_s = undef;
+$opt_p = undef;
+$opt_r = undef;
+$opt_t = undef;
+$opt_w = undef;
+$opt_v = undef;
+$opt_i = undef;
+$opt_c = undef;
+$opt_l = undef;
+$opt_d = undef;
+getopts('hsprtwvi:k:l:c:d');
+
+if (defined ($opt_w)) {
+    print_warranty ();
+}
+if (defined ($opt_s)) {
+    start_karma ();
+}
+
+#
+# determine the process id if karma is already running
+#
+$KARMA_PID = 0;
+if (defined ($opt_i)) {
+    $KARMA_PID = $opt_i;
+} else {
+    $KARMA_PID = get_pid ();
+}
+
+
+if (defined ($opt_p)) {
+    stop_karma ();
+}
+if (defined ($opt_r)) {
+    reload_karma ();
+}
+if (defined ($opt_t)) {
+    status_karma ();
+}
+if (defined ($opt_v)) {
+    print_version ();
+}
+if (defined ($opt_d)) {
+    if (defined $opt_k) {
+	$KARMA_DOC=$opt_k;
+    }
+    cleanup_karma ();
+}
+
+print_help ();
+
+#-----------------------------------------------------------------------
+#
+#
+#
+#-----------------------------------------------------------------------
+sub print_help () {
+    print 
+	"\n",
+	" -h print help and exit\n",
+	" -v print version and exit\n",
+	" -w print warranty and exit\n",
+	" -s start karmad daemon\n",
+	" -p stop karmad daemon\n",
+	" -t print status of running karmad daemon\n",
+	" -r reload karam.conf config file\n",
+	" -i specify process id (if lock file is missing)\n",
+	" -l specify logfile for karmad (ignored if not starting karmad)\n",
+	" -c specify karma config file (ignored if not starting karmad)\n",
+	" -k specify karma doc_root\n",
+	" -d delete dynamically created karma files (karma.html, info/*.html)",
+	"\n",
+	"$0 [-h|-v|-w|-s|-p|-t|-r|-d] [-l file] [-c file] [-k dir]\n";
+    exit;
+}
+
+#-----------------------------------------------------------------------
+#
+#
+#
+#-----------------------------------------------------------------------
+sub start_karma () {
+
+    print ("Starting karma daemon");
+ 
+    my $COMMAND = "$KARMA";
+    if ($opt_l) {
+	print ", logfile: $opt_l";
+	$COMMAND .= " -l $opt_l";
+    }
+    if ($opt_c) {
+	print ", config: $opt_c";
+	$COMMAND .= " -c $opt_c";
+    }
+    if ($opt_k) {
+	print ", doc_root: $opt_k";
+	$COMMAND .= " -k $opt_k";
+    }
+    print "...\n";
+
+    $COMMAND .= " &";
+    system ($COMMAND);
+
+    #
+    # give karma messages a chance to print
+    #
+    sleep (1);
+
+    exit;
+}
+
+
+#-----------------------------------------------------------------------
+#
+# get KARMA_PID from lock file, send kill signal (TERM)
+#
+#-----------------------------------------------------------------------
+sub stop_karma () {
+
+    if ($KARMA_PID > 0) {
+	print ("Stopping karma daemon - pid:$KARMA_PID...\n");
+	kill TERM => $KARMA_PID
+	    or die ("Can't stop pid:$KARMA_PID - $!\n");
+    } else {
+	print
+	    "Can't determine process id from pid file, use -i to \n",
+	    "specify on the command line.\n";
+    }
+    exit;
+}
+
+#-----------------------------------------------------------------------
+#
+# get KARMA_PID from lock file, send USR1 signal
+#
+#-----------------------------------------------------------------------
+sub status_karma () {
+
+    if ($KARMA_PID > 0) {
+#	print ("Getting status of karma daemon - pid:$KARMA_PID...\n");
+
+	kill USR1 => $KARMA_PID
+	    or die ("Can't get status of pid:$KARMA_PID - $!\n");
+
+	open (FIFO, "<$KARMA_FIFO_NAME");
+	while ($line = <FIFO>) {
+	    
+	    print ("$line");
+	}
+	close (FIFO);
+    }    
+
+    exit;
+}
+
+
+#-----------------------------------------------------------------------
+#
+# delete dynamically generated files in the karma doc_root directory
+#
+#-----------------------------------------------------------------------
+sub cleanup_karma () {
+
+    my $COMMAND = "";
+    if (-d $KARMA_DOC) {
+	if (-w $KARMA_DOC) {
+	    $COMMAND = "$DEL_CMD $KARMA_DOC/karma.html";
+	    system ($COMMAND);
+	    $COMMAND = "$DEL_CMD $KARMA_DOC/info/*.html";
+	    system ($COMMAND);
+	} else {
+	    print ("Cannot delete dynamic karma files: $KARMA_DOC\n");
+	}
+    } else {
+	print ("Not a directory: $KARMA_DOC\n");
+    }
+    exit;
+}
+
+
+
+#-----------------------------------------------------------------------
+#
+#
+#
+#-----------------------------------------------------------------------
+sub reload_karma () {
+
+    if ($KARMA_PID > 0) {
+	print ("Reloading karma.conf config pid:$KARMA_PID...\n");
+	kill HUP => $KARMA_PID
+	    or die ("Can't reread config file pid:$KARMA_PID - $!\n");
+    } else {
+	print
+	    "Can't determine process id from pid file, use -i to \n",
+	    "specify it on the command line the command line.\n";
+    }
+    exit;
+}
+
+#-----------------------------------------------------------------------
+#
+# print version and exit
+#
+#-----------------------------------------------------------------------
+sub print_version () {
+    print 
+	"\n",
+	"  Karma v$VERSION Copyright (C) 1999 Sean Hull <shull\@pobox.com>\n",
+	"  Karma comes with ABSOLUTELY NO WARRANTY; for details\n",
+	"  type \"karmad -w\".  This is free software, and you are\n",
+	"  welcome to redistribute it under certain conditions.\n";
+
+    exit ;
+}
+
+
+#-----------------------------------------------------------------------
+#
+# GNU General Public License Warranty
+#
+#-----------------------------------------------------------------------
+sub print_warranty () {
+    print 
+	"\n",
+	"   Copyright (C) 1999  Sean Hull <shull\@pobox.com>\n",
+	"\n",
+	"   This program is free software; you can redistribute it and/or modify\n",
+	"   it under the terms of the GNU General Public License as published by\n",
+	"   the Free Software Foundation; either version 2 of the License, or\n",
+	"   (at your option) any later version.\n",
+	"\n",
+	"   This program is distributed in the hope that it will be useful,\n",
+	"   but WITHOUT ANY WARRANTY; without even the implied warranty of\n",
+	"   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n",
+	"   GNU General Public License for more details.\n",
+	"\n",
+	"   You should have received a copy of the GNU General Public License\n",
+	"   along with this program; if not, write to the Free Software\n",
+	"   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA\n",
+	"\n";
+
+
+   exit;
+
+}
+
+#-----------------------------------------------------------------------
+#
+#
+#
+#-----------------------------------------------------------------------
+sub get_pid () {
+
+    $karma_pid_file = new IO::File "<$KARMA_PID_FILE";
+    if ($karma_pid_file) {
+	$line = <$karma_pid_file>;
+	close ($karma_pid_file);
+	chomp ($line);
+	$line =~ s/\N//g;
+	return $line;
+    } else {
+	print ("Can't seem to open pid file: $KARMA_PID_FILE - $!\n");
+    }
+    return 0;
+}

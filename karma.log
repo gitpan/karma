@@ -1,0 +1,3 @@
+
+kill -USR1, return status via named pipe
+14:50 - Received TERM signal, exiting karmad

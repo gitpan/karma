@@ -24,6 +24,8 @@ STORAGE (
 PROMPT Creating karma_alertlog_errors table...
 CREATE TABLE karma_alertlog_errors (
 	timestamp	DATE,
+        facility        varchar2(10),
+        errno           number(10),
 	text		varchar2(512))
 STORAGE (
 	initial		128k
