@@ -1,0 +1,82 @@
+
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <title>Fragmentation Help</title>
+</head>
+
+<body bgcolor="#003399" link="#996633" vlink="#996633" alink="#ff9933">
+
+&nbsp;
+<table BORDER=0 CELLSPACING=0 CELLPADDING=5 WIDTH="100%" HEIGHT="350" bordercolordark="#003333" bordercolor="#00CCCC" >
+<tr BGCOLOR="#000066">
+<th HEIGHT="50"><img SRC="../images/logo.jpg" height=36 width=144></th>
+
+<th HEIGHT="50"><font face="Arial, Helvetica, sans-serif"><font color="#FF9933"><font size=+3>Alertlog Errors Help</font></font></font></th>
+
+<th HEIGHT="50"><img SRC="../images/help.jpg" height=59 width=54></th>
+</tr>
+
+<tr VALIGN=TOP BGCOLOR="#003399">
+<td COLSPAN="3" HEIGHT="300"><font face="Arial, Helvetica, sans-serif"><font size="3">
+
+The Oracle alert.log facility is similar to that of the unix syslog
+facility.  It is used to report various system messages like startup
+and shutdown, as well as checkpoints, redo-log switches, and most 
+importantly ORA-xxxx errors.
+
+<p><font face="Arial, Helvetica, sans-serif"><font size="3">
+
+Monitoring ORA-xxxx errors is an important part of the DBA's
+responsibility, and Karma aims to ease that burden by watching
+the alert.log for you.
+
+<p><font face="Arial, Helvetica, sans-serif"><font size="3">
+
+Karma monitors databases remotely, and as such cannot directly
+access an OS level file such as the alert.log.   The solution
+(if you're interested in monitoring the alert.log of remote
+databases) is the run an additional script which comes with Karma
+on any machine whose alert.log you wish to monitor.  Essentially
+it watches the file for changes, and writes any ORA-xxxx errors
+to a table.  Karma then just watches this table for new entries.
+Checkout the karmagentd for more information on configuring that
+end of things.
+
+<p><font face="Arial, Helvetica, sans-serif"><font size="3">
+
+Beyond that, configure alertlog monitoring like you would any
+other facility in Karma.  Here's an example:
+
+</font></font></font><i><font color="#009900"></font></i>
+<p><i><font face="Arial, Helvetica, sans-serif"><font color="#330033"><font size=+1>
+alertlog:X:Y:Z
+</font></font></font></i><font color="#330033"></font>
+<p><font face="Arial, Helvetica, sans-serif"><font size="3">
+
+
+Where X is the number of minutes between checks of the alert.log
+monitoring table.  Y is the number of minutes within which to
+consider the error and WARNING level situation.  Z is the number
+of minutes within which to consider the error a WARNING level
+situation.  Here's a recommended configuration:
+
+<p><i><font face="Arial, Helvetica, sans-serif"><font color="#330033"><font size=+1>
+
+alertlog:15:86400:60
+
+</i></font></font></font>
+<p><font face="Arial, Helvetica, sans-serif"><font size="3">
+
+This tells karma to monitor every 15 minutes, consider any ORA-xxxx
+errors within a day to be a WARNING situation, and any ORA-xxxx
+errors in the last hour to be an ALERT situation.
+
+</font></font>
+
+<p>&nbsp;</td>
+</tr>
+</table>
+
+</body>
+</html>

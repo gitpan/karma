@@ -1,0 +1,8 @@
+
+Changelog for Karma - Oracle monitoring software
+------------------------------------------------
+
+Date		Description
+07.15.99	o karmaclientd runs as daemon
+		o cleaned up some globals
+		o 

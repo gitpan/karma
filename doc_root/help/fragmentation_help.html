@@ -1,0 +1,49 @@
+
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <title>Fragmentation Help</title>
+</head>
+<body bgcolor="#003399" link="#996633" vlink="#996633" alink="#ff9933">
+&nbsp;
+<table BORDER=0 CELLSPACING=0 CELLPADDING=5 WIDTH="100%" HEIGHT="350" bordercolordark="#003333" bordercolor="#00CCCC" >
+<tr BGCOLOR="#000066">
+<th HEIGHT="50"><img SRC="../images/logo.jpg" height=36 width=144></th>
+
+<th HEIGHT="50"><font face="Arial, Helvetica, sans-serif"><font color="#FF9933"><font size=+3>Fragmentation
+Help</font></font></font></th>
+
+<th HEIGHT="50"><img SRC="../images/help.jpg" height=59 width=54></th>
+</tr>
+
+<tr VALIGN=TOP BGCOLOR="#003399">
+<td COLSPAN="3" HEIGHT="300"><font face="Arial, Helvetica, sans-serif"><font size="3">Fragmentation
+occurs at the table (heap) or index (b-tree) level. Essentially when you
+create objects in a tablespace, if you set them all with different storage
+parameters, or a pctincrease which is non-zero you'll likely cause tablespace
+fragmentation of the objects contained therein.</font></font></font>
+<p><font face="Arial, Helvetica, sans-serif"><font size="3">
+Fragmentation
+can be resolved by rearranging objects in other tablespaces, rebuilding
+with different storage parameters, or export/import. Ideally though, it
+would be best to avoid fragmentation altogether. How can we accomplish
+this? Oracle recommends in their latest whitepaper on the subject "How
+To Stop Defragmenting and Start Living" to avoid fragmentation altogether
+by creating tablespaces with with uniform extent sizes, and leaving objects
+to assume the default storage params when they're created. For more information,
+check: <a href="http://support.oracle.com/cgi-bin/cr/getfile_cr.cgi?239049">How
+To Stop Defragmentating and Start Living.</a></font></font></font>
+<p><font face="Arial, Helvetica, sans-serif"><font size="3">At
+any rate, karma can be setup to be strict or not so strict. Configure karma
+for fragmentation monitoring as follows:</font></font></font><i><font color="#009900"></font></i>
+<p><i><font face="Arial, Helvetica, sans-serif"><font color="#330033"><font size=+1>fragmentation:X:Y:Z</font></font></font></i><font color="#330033"></font>
+<p><font face="Arial, Helvetica, sans-serif"><font size="3">Where
+X, as usual is frequency in minutes at which to check for fragmentation.
+Y is the WARNING value, and Z is the ALERT value.
+</font></font>
+<p>&nbsp;</td>
+</tr>
+</table>
+
+</body>
+</html>

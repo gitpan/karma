@@ -1,0 +1,52 @@
+
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <title>Fragmentation Help</title>
+</head>
+
+<body bgcolor="#003399" link="#996633" vlink="#996633" alink="#ff9933">
+
+&nbsp;
+<table BORDER=0 CELLSPACING=0 CELLPADDING=5 WIDTH="100%" HEIGHT="350" bordercolordark="#003333" bordercolor="#00CCCC" >
+<tr BGCOLOR="#000066">
+<th HEIGHT="50"><img SRC="../images/logo.jpg" height=36 width=144></th>
+
+<th HEIGHT="50"><font face="Arial, Helvetica, sans-serif"><font color="#FF9933"><font size=+3>Hit Ratios 
+Help</font></font></font></th>
+
+<th HEIGHT="50"><img SRC="../images/help.jpg" height=59 width=54></th>
+</tr>
+
+<tr VALIGN=TOP BGCOLOR="#003399">
+<td COLSPAN="3" HEIGHT="300"><font face="Arial, Helvetica, sans-serif"><font size="3">
+
+Hitratios are a very way to get a big picture of how well your 
+database is performing.  Essentially a hitratio gives you a ratio
+with which to quickly judge how many I/O requests are being 
+satisfied via memory vs I/O requests which actually require disk
+I/O.
+
+<p><font face="Arial, Helvetica, sans-serif"><font size="3">
+
+
+We monitor data block buffer hitratio, dictionary cache hitratio
+and so on.  Configure hitratio monitoring as follows:
+
+</font></font></font><i><font color="#009900"></font></i>
+<p><i><font face="Arial, Helvetica, sans-serif"><font color="#330033"><font size=+1>
+hitratios:5:95:70
+</font></font></font></i><font color="#330033"></font>
+<p><font face="Arial, Helvetica, sans-serif"><font size="3">
+
+In this example we're checking every 5 minutes.  If the hitratio is
+below 95%, we're at WARNING level, and if it drops below 70%, we're 
+at ALERT level.
+
+</font></font>
+<p>&nbsp;</td>
+</tr>
+</table>
+
+</body>
+</html>

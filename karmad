@@ -1,0 +1,2835 @@
+#!/usr/bin/perl -w
+#------------------------------------------------------------------
+# 
+# Karma Copyright (C) 1999  Sean Hull <shull@pobox.com>
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+#
+#
+#------------------------------------------------------------------
+#
+# karmad -
+#
+# Oracle monitoring software.
+#
+#------------------------------------------------------------------
+
+#
+# current version
+#
+$VERSION="0.5.0";
+
+
+require 5.004;
+#use strict;
+use DBI;
+use File::Basename;
+use Getopt::Std;
+
+#---------------------------------
+#
+# Plain Old Documentation (pod...)
+#
+#---------------------------------
+
+=head1 NAME
+
+Karma - Oracle Database Monitoring Software
+
+=head1 SYNOPSIS
+
+Karma is an Web based Oracle monitoring utility.  Use it to watch
+your alert.log, rollback segments, extents, tablespace quotas, 
+latch contention, redologs, fragmentation, and hitratios.  It'll
+also help you find slow running sql queries.  
+
+=head1 NOTES
+
+Get started with karma by first figuring out the databases you
+would like to monitor.  Edit the karma.conf file and add lines
+like this:
+
+karma:TNS_NAME:username:password:X
+
+Check the karma.conf file for more info, or do:
+
+$ perldoc karma.conf
+
+=head1 RECENT CHANGES
+
+o added final more-info pages to "up", "os", "db",
+  "extents", and "fragmentation"
+
+o item finished the server daemon, which allows
+  monitoring the alert.log and uptime on the remote db.
+
+o item added these pod docs
+
+=cut
+
+
+#
+# get the command line options
+#
+$opt_v = undef;
+$opt_w = undef;
+$opt_c = undef;
+$opt_h = 0;
+$opt_c = "";
+getopts('hc:k:l:vw');
+
+if ($opt_v) {
+    print_version ();
+}
+
+#
+# -c option is used for specifying config file
+#
+#if ($opt_c) {
+#    print_conditions ();
+#}
+
+if ($opt_w) {
+    print_warranty ();
+}
+
+if ($opt_h) {
+    print_help ();
+}
+
+#-----------------------------------------------------------------------
+#
+# TYPES
+#
+#-----------------------------------------------------------------------
+
+
+#-----------------------------------------------------------------------
+#
+# CONSTANTS
+#
+#-----------------------------------------------------------------------
+$cDAYSECS = 86400;
+
+$cOK_STATUS = 1;
+$cNO_STATUS = 2;
+$cWARNING_STATUS = 3;
+$cALERT_STATUS = 4;
+
+$cSTATUS_HEIGHT=25;
+$cSTATUS_WIDTH=35;
+$cHEAD_HEIGHT=50;
+#
+# constants for db_info{TNS} array
+#
+$cDB_HANDLE=0;
+$cDB_USER=1;
+$cDB_PASS=2;
+$cDB_REFRESH=3;
+
+#
+# HTML COLORS
+#
+# karma page colors
+#
+$cKARMA_TEXT_COLOR="#FF9966";
+#$cKARMA_LINK_COLOR=$cKARMA_TEXT_COLOR;
+$cKARMA_LINK_COLOR="#CC6600";
+$cTEXT_COLOR="#FF9933";
+$cEMPHASIS_TEXT="#CC3300";
+
+#$cBODY_BG_COLOR="#3366CC";
+$cINFO_BG_COLOR="#003399";
+$cHEAD_BG_COLOR="#000066";
+$cMAIN_TABLE_BG="#006666";
+
+$cBORDER_COLOR="#00CCCC";
+$cBORD_COL_DARK="#003333";
+
+#
+# misc page colors
+#
+
+
+
+#
+# how often (in minutes) to wakeup and check which services need
+# to be updated
+#
+$cWAKEUP_FREQUENCY=1;
+
+#
+# this specifies the base location of generated karma html files
+#
+$cKARMA_DOC_ROOT = "doc_root";
+if ($opt_k) {
+    $cKARMA_DOC_ROOT = $opt_k;
+}
+
+if (not (-e $cKARMA_DOC_ROOT) ||
+    not (-d $cKARMA_DOC_ROOT) ||
+    not (-w $cKARMA_DOC_ROOT)) {
+
+    print ("Please make sure that doc_root is a directory and\n");
+    print ("that it is writable.\n");
+    exit;
+}
+
+@test_array = (["Status", "Name", "Value"], 
+	       [$cOK_STATUS, "Aeon", "25"],
+	       [$cWARNING_STATUS, "Scafandra", "50"],
+	       [$cALERT_STATUS, "Una", "75"],
+	       [$cNO_STATUS, "Trevor", "100"]);
+ 
+$testRef = \@test_array; 
+
+#
+# set the logfile name
+#
+$logfile_name = "-";
+if (defined ($opt_l)) {
+    $logfile_name = "$opt_l";
+}
+
+#
+# Yes, you can change either of these to 0 if you don't like
+# blinking warning icons on your karma monitor page
+#
+$USE_BLINK_WARNING=1;
+$USE_BLINK_ALERT=1;
+
+#-----------------------------------------------------------------------
+#
+# GLOBALS 
+#
+# Organized as follows:
+#
+# TNS is one of the TNS_NAMES specified in "karma:" directive lines
+#    in the karma.conf file
+#
+# SERVICE is one of (redolog, rollback, latch, tablespace, slowsql,
+#                    hitratios, extents, fragmentation, mts, os,
+#                    alertlog, up)
+#
+# FTYPE is one of (help, info)
+#
+# GLOBAL VARIABLE          DESCRIPTION
+# -----------------------  --------------------------------
+# $statements{SERVICE}     a string holding the sql statements
+#                          executed in the getSERVICEInfo routine
+#                          to judge the status of this service
+#
+# $files{FTYPE}{SERVICE}   a string holding a filename
+#
+# $config_info{SERVICE}    an array of values for this service
+#                          gathered from the karma.conf file
+#
+# $db_info{TNS}            an array of info related to each
+#                          database we're connecting to
+#                          [0]  database handle
+#                          [1]  username
+#                          [2]  password
+#                          [3]  refresh
+#
+# $stats{SERVICE}{TNS}     stores the status of each service
+#                          monitored for each database.
+#                          1 - OK STATUS
+#                          2 - NO STATUS
+#                          3 - WARNING STATUS
+#                          4 - ALERT STATUS
+#
+# $names{SERVICE}          Long and short versions of the service names
+#                          for display as main.html column headers, and
+#                          info page titles.
+#
+#-----------------------------------------------------------------------
+
+#----------------------------------------------
+#
+# sql statements
+#
+#----------------------------------------------
+
+#
+# redo log query
+#
+$statements{redolog} = "SELECT TO_CHAR(first_time, 'J'), TO_CHAR (first_time, 'SSSSS'), group#, sequence#, TO_CHAR (first_time, 'DD/MM/YYYY HH24:MI') FROM v\$log ORDER BY 1,2";
+
+# 
+# rollback segment query
+#
+#$statements{rollback} = "select ((gets-waits) * 100/gets) from v\$rollstat";
+$statements{rollback} = "select a.name, b.status, b.gets, b.waits from v\$rollname a, v\$rollstat b where a.usn = b.usn";
+
+#
+# latch query
+#
+#$statements{latch} = "select (gets-misses) * 100 / gets from v\$latch where gets > 0";
+$statements{latch} = "select name, gets, misses from v\$latch order by name";
+
+#
+# tablespace query
+#
+$statements{tablespace} = "
+SELECT  a.tablespace_name, a.total, b.used
+FROM    (SELECT  tablespace_name, SUM (bytes) total
+         FROM    dba_data_files
+         GROUP BY tablespace_name) a,
+        (SELECT  tablespace_name, SUM (bytes) used
+         FROM    dba_segments
+         GROUP BY tablespace_name) b
+WHERE   a.tablespace_name = b.tablespace_name (+)";
+
+#
+# slow sql query
+#
+#$statements{slowsql} = "SELECT disk_reads / DECODE (executions, 0, 1, executions), sql_text FROM v\$sqlarea WHERE disk_reads / DECODE (executions, 0, 1, executions) > ?";
+$statements{slowsql} = "SELECT disk_reads, executions, sql_text FROM v\$sqlarea";
+
+#
+# hit ratios query
+#
+$statements{hitratios} = "SELECT name, value FROM v\$sysstat WHERE name IN ('consistent gets', 'db block gets', 'physical reads')";
+
+#
+# extents query
+#
+$statements{extents} = "SELECT segment_name, max_extents, count(*), owner FROM dba_segments WHERE owner NOT IN ('SYS', 'SYSTEM') GROUP BY segment_name, owner, max_extents";
+
+#
+# fragmentation query
+#
+$statements{fragmentation} = "SELECT tablespace_name, initial_extent, next_extent, pct_increase FROM dba_tablespaces WHERE tablespace_name NOT IN ('SYSTEM')";
+
+#
+# mts query
+#
+$statements{mts} = "SELECT name, busy, idle FROM v\$dispatcher";
+
+#
+# OS query
+#
+$statements{os} = "SELECT load_one, load_five, load_fifteen, pctidle, TO_CHAR (timestamp, 'HH24:MI') FROM karma_os_stats";
+
+#
+# alert log query
+#
+$statements{alertlog} = "SELECT facility, error_num, TO_CHAR (timestamp, 'HH24:MI'), text FROM karma_alertlog_errors WHERE timestamp > (SYSDATE - 1) ORDER BY timestamp DESC";
+
+#
+# up query (none needed for now)
+#
+$statements{up} = "SELECT name, value FROM v\$sysstat ORDER BY name";
+
+#
+# db info query
+#
+$statements{db} = "SELECT name, value FROM v\$parameter ORDER BY name";
+
+#
+# more info file extentsions... actual filename will be
+# dbname.$REDOLOG_FILE for example.
+#
+$INDEX_FILE = "$cKARMA_DOC_ROOT/karma.html";
+
+$files{info}{redolog}       = "redolog.html";
+$files{info}{rollback}      = "rollback.html";
+$files{info}{slowsql}       = "slowsql.html";
+$files{info}{alertlog}      = "alertlog.html";
+$files{info}{hitratios}     = "hitratios.html";
+$files{info}{extents}       = "extents.html";
+$files{info}{latch}         = "latch.html";
+$files{info}{fragmentation} = "fragmentation.html";
+$files{info}{mts}           = "mts.html";
+$files{info}{tablespace}    = "tablespace.html";
+$files{info}{os}            = "os.html";
+$files{info}{up}            = "up.html";
+$files{info}{db}            = "db.html";
+
+#
+# help files
+#
+$files{help}{redolog}       = "redolog_help.html";
+$files{help}{rollback}      = "rollback_help.html";
+$files{help}{slowsql}       = "slowsql_help.html";
+$files{help}{alertlog}      = "alertlog_help.html";
+$files{help}{hitratios}     = "hitratios_help.html";
+$files{help}{extents}       = "extents_help.html";
+$files{help}{latch}         = "latch_help.html";
+$files{help}{fragmentation} = "fragmentation_help.html";
+$files{help}{mts}           = "mts_help.html";
+$files{help}{tablespace}    = "tablespace_help.html";
+$files{help}{os}            = "os_help.html";
+$files{help}{up}            = "up_help.html";
+$files{help}{db}            = "db_help.html";
+
+#
+# shortened service names (no more than 5 characters)
+#
+$names{short}{redolog}       = "rdlg";
+$names{short}{rollback}      = "rlbk";
+$names{short}{slowsql}       = "ssql";
+$names{short}{alertlog}      = "alog";
+$names{short}{hitratios}     = "hitr";
+$names{short}{extents}       = "exts";
+$names{short}{latch}         = "latch";
+$names{short}{fragmentation} = "frag";
+$names{short}{mts}           = "mts";
+$names{short}{tablespace}    = "tbsp";
+$names{short}{os}            = "os";
+$names{short}{up}            = "up";
+$names{short}{db}            = "name";
+
+#
+# long service names (for info page titles)
+#
+$names{long}{redolog}       = "Redolog Switching";
+$names{long}{rollback}      = "Rollback Segment Contention";
+$names{long}{slowsql}       = "Slow SQL";
+$names{long}{alertlog}      = "Alertlog Errors";
+$names{long}{hitratios}     = "Hit Ratios";
+$names{long}{extents}       = "Extents";
+$names{long}{latch}         = "Latch Contention";
+$names{long}{fragmentation} = "Fragmentation";
+$names{long}{mts}           = "Multi-threaded Server";
+$names{long}{tablespace}    = "Tablespace Quotas";
+$names{long}{os}            = "OS Statistics";
+$names{long}{up}            = "Database Up";
+$names{long}{db}            = "Database Name";
+
+
+#
+# which columns will be displayed and how often
+# stored in a hash of arrays where the array contains
+# frequency, alert, and warn values respectively
+#
+$config_info{redolog}       = [(0,0,0)];
+$config_info{rollback}      = [(0,0,0)];
+$config_info{slowsql}       = [(0,0,0)];
+$config_info{alertlog}      = [(0,0,0)];
+$config_info{hitratios}     = [(0,0,0)];
+$config_info{extents}       = [(0,0,0)];
+$config_info{latch}         = [(0,0,0)];
+$config_info{fragmentation} = [(0,0,0)];
+$config_info{mts}           = [(0,0,0)];
+$config_info{tablespace}    = [(0,0,0)];
+$config_info{os}            = [(0,0,0)];
+
+# 
+# always check that the db is up, default every 5 minutes, refresh
+# html page (with tag) every 60 seconds by default
+#
+$config_info{up}            = [(5,60,0)];
+
+
+$currTime = 0;
+
+#-----------------------------------------------------------------------
+#
+# FUNCTION PROTOTYPES
+#
+# not sure how to do these yet...
+#
+#-----------------------------------------------------------------------
+sub main ();
+
+sub getRedologStatus ($$$);
+sub getRollbackStatus ($$$);
+sub getLatchStatus ($$$);
+sub getTablespaceStatus ($$$);
+sub getSlowsqlStatus ($$$);
+sub getAlertlogStatus ($$$);
+sub getHitratiosStatus ($$$);
+sub getMTSStatus ($$$);
+sub getExtentsStatus ($$$);
+sub getFragmentationStatus ($$$);
+sub getDbStatus ($);
+sub getUpStatus ($);
+sub getInfo ($$);
+sub getTimeString ($);
+sub getDayMinutes ($);
+sub readConfig ($);
+sub showInfoPage ($$$$);
+sub showKarmaTableRow ($$);
+sub showKarmaTableHeader ();
+sub showKarmaHeadMain ();
+sub showKarmaFootMain ();
+sub showInfoHead ($$);
+sub showInfoFoot ($$);
+sub showServiceStatus ($$);
+sub showIndexPage ($);
+
+
+#
+# open the error logfile
+# this shouldn't be global...
+#
+# NOTE: Perl doesn't seem to write to to the logfile until the program
+# exits.  Not sure how to change this behavior, so for now, since
+# karmad doesn't really happily terminate, we should just use stdout.
+#
+#print ("LFILE: $logfile_name\n");
+open (LFILE, ">>$logfile_name");
+#if (defined (LFILE)) {
+#    print ("We have a logfile...\n");
+#    print LFILE ("WE HAVE A LFILE...\n");
+#} else {
+#    print ("NO OPEN logfile...\n");
+#}
+
+#
+# read in configuration information from the 
+# conf file specified on the command line
+#
+if (($opt_c) && (-f $opt_c) && (-r $opt_c)) {
+    readConfig ($opt_c);
+
+#
+# if none was specified on the command line, check
+# for /etc/karma.conf
+#
+} elsif ((-f "/etc/karma.conf") && (-r "/etc/karma.conf")) {
+    readConfig ("/etc/karma.conf");
+
+#
+# if we still haven't found the karma.conf file,
+# check the current directory
+#
+} elsif ((-f "./karma.conf") && (-r "./karma.conf")) {
+    readConfig ("./karma.conf");
+
+# 
+# without a config file we just exit
+#
+} else {
+    print ("The karma.conf configuration file was not found.  Please\n");
+    print ("make sure the file /etc/karma.conf or ./karma.conf exists\n");
+    print ("and is readable, otherwise specify another file with -c. \n");
+    exit;
+}
+#
+# ok, now we're ready to run
+#
+main ();
+
+#
+# do we ever get here?
+#
+close (LFILE);
+
+#
+# not sure if we really ever get to here since we're looping
+# infinitely...  I wonder how we can terminate cleanly after
+# that?
+#
+foreach $key (keys %db_info) {
+    $db_info{$key}[$cDB_HANDLE]->disconnect;
+}
+
+#-----------------------------------------------------------------------
+#
+# SUBROUTINES
+#
+#-----------------------------------------------------------------------
+
+
+
+
+
+#-----------------------------------------------------------------------
+#
+# main
+#
+#-----------------------------------------------------------------------
+sub main () {
+
+    my $unixTime = time ();
+    $currTime = getTimeString ($unixTime);
+    my $dayMinutes = getDayMinutes ($unixTime);
+    my $newUnixTime = undef;
+    my $newDayMinutes = undef;
+    my $newCurrTime = undef;
+
+    # 
+    # not sure if this is the best way to do an infinite loop...
+    #
+    while (1) {
+	if ((not defined ($newDayMinutes)) ||
+	    ((defined ($newDayMinutes)) &&
+	     ($newDayMinutes == ($dayMinutes + $cWAKEUP_FREQUENCY)))) {
+	    
+	    if (defined ($newDayMinutes)) {
+		$unixTime = $newUnixTime;
+		$currTime = $newCurrTime;
+		$dayMinutes = $newDayMinutes;
+	    }
+
+#	    print ("Updating stats with DAYMINUTES=$dayMinutes\n");
+
+            #
+            # iterate on each database
+            # (should be a hash of database names, with arrays of values)
+            #
+	    foreach $tnsKey (keys %db_info) {
+		($stats{up}{$tnsKey},
+                 $stats{os}{$tnsKey},
+                 $stats{mts}{$tnsKey},
+		 $stats{redolog}{$tnsKey},
+		 $stats{rollback}{$tnsKey},
+		 $stats{latch}{$tnsKey},
+		 $stats{tablespace}{$tnsKey},
+		 $stats{slowsql}{$tnsKey},
+		 $stats{alertlog}{$tnsKey},
+		 $stats{hitratios}{$tnsKey},
+		 $stats{fragmentation}{$tnsKey},
+		 $stats{extents}{$tnsKey}) = getInfo ($tnsKey, $dayMinutes);
+
+#		print ("RETURN CODES - $tnsKey - $stats{up}{$tnsKey},$stats{os}{$tnsKey},$stats{mts}{$tnsKey}\n");
+	    }
+	    
+
+            #
+            # need to open and close this file inside the doPage routine
+            # and send the file handle as a param to the inside routines
+            #  
+	    showIndexPage ($dayMinutes);
+
+	#
+	# sleep for 15 seconds
+	#
+	} else {
+#	    print ("Sleeping for 15 seconds...\n");
+	    sleep (15);
+	}
+
+	$newUnixTime = time ();
+	$newCurrTime = getTimeString ($newUnixTime);
+	$newDayMinutes = getDayMinutes ($newUnixTime);
+   
+    }
+
+#    close (LFILE);
+}
+
+
+#-----------------------------------------------------------------------
+#
+# print the html page on stdout
+#
+#-----------------------------------------------------------------------
+sub showIndexPage ($) {
+    my ($inMinutes) = @_;
+    open (INDFILE, ">$INDEX_FILE");
+
+    showKarmaHeadMain ();
+
+    #
+    # build status table
+    #
+    print INDFILE ("<table border=\"1\" cellpadding=\"0\" cellspacing=\"0\" bordercolor=\"$cBORDER_COLOR\">\n");
+
+
+    #
+    # title row
+    #
+    showKarmaTableHeader ();
+
+    #
+    # one row per database
+    #
+    foreach $key (keys %db_info) {
+	showKarmaTableRow ($key, $inMinutes);
+    }
+
+    print INDFILE ("</TABLE>\n");
+
+    showKarmaFootMain ();
+
+    close (INDFILE);
+}
+
+
+#-----------------------------------------------------------------------
+#
+# first parameter is the type of statistic
+# second parameter is the tns name
+#
+#-----------------------------------------------------------------------
+sub showServiceStatus ($$) {
+    my ($inType, $inTNS) = @_;
+
+    my $theFile = $files{info}{$inType};
+    my $theStatus = $stats{$inType}{$inTNS};
+
+    if ($theStatus == $cALERT_STATUS) {
+	if ($USE_BLINK_ALERT == 1) {
+	    $theImage = "blink_red_status";
+	} else {
+	    $theImage = "red_status";
+	}
+	$theMessage = "ALRT";
+    } elsif ($theStatus == $cWARNING_STATUS) {
+	if ($USE_BLINK_WARNING == 1) {
+	    $theImage = "blink_yellow_status";
+	} else {
+	    $theImage = "yellow_status";
+	}
+	$theMessage = "WARN";
+    } elsif ($theStatus == $cNO_STATUS) {
+	$theImage = "purple_status";
+	$theMessage = "NR";
+    } else {
+	$theImage = "green_status";
+	$theMessage = "OK";
+    }
+
+    #
+    # if the database is not up, all links are off except "up" status
+    # link, which will be ALERT_STATUS, and will basically just say
+    # the database is down.
+    # 
+    if (($stats{up}{$inTNS} == $cALERT_STATUS) &&
+	(not ($inType =~ /up/))) {
+	print INDFILE ("<IMG SRC=\"images/$theImage\" BORDER=0 height=$cSTATUS_HEIGHT width=$cSTATUS_WIDTH border=\"0\">\n");
+    } else {
+	print INDFILE ("<A HREF=\"info/$inTNS.$theFile\" target=\"_self\"><IMG SRC=\"images/$theImage\" BORDER=0 ></A>\n");
+    }
+}
+
+#-----------------------------------------------------------------------
+#
+# check how often redo logs switch.  If they're more often than 30
+# minutes, put us at alert status
+# (Should we also check v$loghist? probably yes)
+#
+#-----------------------------------------------------------------------
+sub getRedologStatus ($$$) {
+    my ($redolog_threshold_warn, $redolog_threshold_alert, $inTNS) = @_;
+
+    my $redologStatus = $cNO_STATUS;
+    my $currStatus = $cNO_STATUS;
+    my $redoTableRef = [()];
+    my $redoRowCount = 0;
+    my @redoTable = ();
+
+#    if ($dbh) {
+#    if ($dbh{$inTNS}) {
+    if ($db_info{$inTNS}[$cDB_HANDLE]) {
+
+	my $curr_row = [];
+#	my $prev_row = [];
+	my $currtime = 0;
+	my $prevtime = 0;
+	my $diff = 0;
+#	my $sth = $dbh{$inTNS}->prepare ($statements{redolog});
+	my $sth = $db_info{$inTNS}[$cDB_HANDLE]->prepare ($statements{redolog});
+	my $rv = $sth->execute ();
+
+	#$prev_row = $sth->fetchrow_arrayref ();
+
+	#
+	# redolog more info table titles
+	#
+	@{$redoTableRef->[$redoRowCount]} = ("Level", "Group#",
+					     "Sequence#", "Timestamp");
+	$redoRowCount = 1;
+	$curr_row = [];
+	$currtime = 0;
+	$prevtime = 0;
+	$diff = 0;
+	$curr_row = $sth->fetchrow_arrayref;
+	while (defined ($curr_row->[0])) {
+
+
+	    $prevtime = $currtime;
+	    $currtime = $cDAYSECS * $curr_row->[0] + $curr_row->[1];
+	    $diff = $currtime - $prevtime;
+	    
+	    
+	    if ($diff < ($redolog_threshold_alert * 60)) {
+		$currStatus = $cALERT_STATUS;
+	    } elsif ($diff < ($redolog_threshold_warn * 60)) {
+		$currStatus = $cWARNING_STATUS;
+	    } else {
+		$currStatus = $cOK_STATUS;
+	    }
+	    
+	    
+	    #
+	    # escalate warning/alert level if necessary
+	    #
+	    if (($redologStatus == $cNO_STATUS) || 
+		($redologStatus == $cOK_STATUS) ||
+		($currStatus == $cALERT_STATUS)) {
+		$redologStatus = $currStatus;
+	    } elsif (($currStatus == $cALERT_STATUS) &&
+		     ($redologStatus == $cWARNING_STATUS)) {
+		$redologStatus = $currStatus;
+	    }
+	    
+	    
+	    
+	    @{$redoTableRef->[$redoRowCount]} = ($currStatus, $curr_row->[2],
+						 $curr_row->[3], $curr_row->[4]);
+	    
+	    $curr_row = $sth->fetchrow_arrayref;
+	    $redoRowCount++;
+	}
+	
+	if ($redoRowCount == 1) {
+	    $redologStatus = $cWARNING_STATUS;
+	}
+
+	if ($sth) {
+	    $sth->finish;
+	}
+    }
+
+
+    showInfoPage ($redoTableRef, "redolog", $inTNS, "Redo Contention Info Page");
+    return $redologStatus;
+}
+
+#-----------------------------------------------------------------------
+#
+# check for rollback segment contention
+
+# (gets-waits)*100/gets is the hitratio for that rollback segment
+# We're simply checking that this is > 99.
+#
+#-----------------------------------------------------------------------
+sub getRollbackStatus ($$$) {
+    my ($roll_threshold_alert, $roll_threshold_warn, $inTNS) = @_;
+
+    my $rollbackStatus = $cNO_STATUS;
+    my $rollbackTableRef = [()];
+    my $rollbackRowCount = 0;
+    my $gets = 0;
+    my $gets_waits = 0;
+    my $currStatus = $cNO_STATUS;
+
+#    if ($dbh{$inTNS}) {
+    if ($db_info{$inTNS}[$cDB_HANDLE]) {
+
+#	$sth = $dbh{$inTNS}->prepare ($statements{rollback});
+	$sth = $db_info{$inTNS}[$cDB_HANDLE]->prepare ($statements{rollback});
+	$rv = $sth->execute;
+	$gets = 0;
+	$gets_waits = 0;
+	$currStatus = $cNO_STATUS;
+
+	#
+	# rollback segment more info table titles
+	#
+	@{$rollbackTableRef->[0]} = ("Level", 
+				     "Name",
+				     "Status",
+				     "Gets",
+				     "Waits",
+				     "Hitratio");
+	$rollbackRowCount = 1;
+	$curr_row = $sth->fetchrow_arrayref;
+	while (defined ($curr_row->[0])) {
+	    $gets = $curr_row->[2];
+	    $gets_waits = $gets - $curr_row->[3];
+	    $currStatus = $cNO_STATUS;
+	    if ($gets > 0) {
+		$rollbackRatio = ($gets_waits) * 100 / $gets;
+
+		if ($rollbackRatio < $roll_threshold_alert) {
+		    $currStatus = $cALERT_STATUS;
+		} elsif ($rollbackRatio < $roll_threshold_warn) {
+		    $currStatus = $cWARNING_STATUS;
+		} else {
+		    $currStatus = $cOK_STATUS;
+		}
+	    }
+
+	    #
+	    # escalate warning/alert level if necessary
+	    #
+	    if (($rollbackStatus == $cNO_STATUS) || 
+		($rollbackStatus == $cOK_STATUS) ||
+		($currStatus == $cALERT_STATUS)) {
+		$rollbackStatus = $currStatus;
+	    } elsif (($currStatus == $cALERT_STATUS) &&
+		     ($rollbackStatus == $cWARNING_STATUS)) {
+		$rollbackStatus = $currStatus;
+	    }
+	    
+
+	    @{$rollbackTableRef->[$rollbackRowCount]} = ($currStatus, 
+							 $curr_row->[0],
+							 $curr_row->[1],
+							 $curr_row->[2],
+							 $curr_row->[3],
+							 $rollbackRatio);
+
+	    $rollbackRowCount++;
+	    $curr_row = $sth->fetchrow_arrayref;
+	}
+	if ($sth) {
+	    $sth->finish;
+	}
+    }
+
+
+    showInfoPage ($rollbackTableRef, "rollback", $inTNS, "Rollback Info Page");
+    return $rollbackStatus;
+}
+
+#-----------------------------------------------------------------------
+# 
+# check for latch contention
+# not sure if this query is strictly correct.  Need a confirmation.
+#
+#-----------------------------------------------------------------------
+sub getLatchStatus ($$$) {
+    my ($latch_threshold_alert, $latch_threshold_warn, $inTNS) = @_;
+
+    my $latchStatus = $cNO_STATUS;
+    my $currStatus = $cNO_STATUS;
+    my $latchTableRef = [()];
+    my $latchRowCount = 0;
+    my $latchRatio = 0;
+    my 	$curr_row = [];
+    my $gets = 0;
+    my $misses = 0;
+    my $gets_misses = 0;
+
+#    if ($dbh{$inTNS}) {
+    if ($db_info{$inTNS}[$cDB_HANDLE]) {
+
+#	$sth = $dbh{$inTNS}->prepare ($statements{latch});
+	$sth = $db_info{$inTNS}[$cDB_HANDLE]->prepare ($statements{latch});
+	$rv = $sth->execute;
+
+	$latchStatus = $cOK_STATUS;
+	$latchRatio = 0;
+	$gets = 0;
+	$misses = 0;
+	$gets_misses = 0;
+	
+        #
+	# latch more info table titles
+	#
+	@{$latchTableRef->[0]} = ("Level", 
+				  "Name",
+				  "Gets",
+				  "Misses",
+				  "Hitratio");
+	$latchRowCount = 1;
+	$curr_row = $sth->fetchrow_arrayref;
+	while (defined ($curr_row->[0])) {
+
+	    $currStatus = $cNO_STATUS;
+	    $gets = $curr_row->[1];
+	    $misses = $curr_row->[2];
+	    $gets_misses = $gets - $misses;
+	    if (($gets == 0) && ($misses == 0)) {
+		$latchRatio = 100;
+	    } elsif ($gets > 0) {
+		$latchRatio = ($gets_misses) * 100 / $gets;
+	    }
+	    if ($latchRatio < $latch_threshold_alert) {
+		$currStatus = $cALERT_STATUS;
+	    } elsif ($latchRatio < $latch_threshold_warn) {
+		$currStatus = $cWARNING_STATUS;
+	    } else {
+		$currStatus = $cOK_STATUS;
+	    }
+	    
+
+	    #
+	    # escalate warning/alert level if necessary
+	    #
+	    if (($latchStatus == $cNO_STATUS) || 
+		($latchStatus == $cOK_STATUS) ||
+		($currStatus == $cALERT_STATUS)) {
+		$latchStatus = $currStatus;
+	    } elsif (($currStatus == $cALERT_STATUS) &&
+		     ($latchStatus == $cWARNING_STATUS)) {
+		$latchStatus = $currStatus;
+	    }
+	    
+
+	    @{$latchTableRef->[$latchRowCount]} = ($currStatus, 
+						   $curr_row->[0],
+						   $curr_row->[1],
+						   $curr_row->[2],
+						   $latchRatio);
+
+
+	    $latchRowCount++;
+	    $curr_row = $sth->fetchrow_arrayref;
+	}
+
+	if ($sth) {
+	    $sth->finish;
+	}
+
+    }
+
+
+    showInfoPage ($latchTableRef, "latch", $inTNS, "Latch Info Page");
+    return $latchStatus;
+}
+
+
+
+#-----------------------------------------------------------------------
+# 
+# Right now this is checking that tablespaces are not above a certain
+# threshold (%used).  It *SHOULD* just check if there is an object
+# whose next extent is bigger than the largest free extent, or the
+# largest free space...
+#
+#-----------------------------------------------------------------------
+sub getTablespaceStatus ($$$) {
+    my ($tablespace_threshold_warn, $tablespace_threshold_alert, $inTNS) = @_;
+
+    my $tablespaceStatus = $cNO_STATUS;
+    my $curr_row = [()];
+    my $currStatus = $cNO_STATUS;
+    my $pctused = 0;
+    my $used_size = 0;
+    my $total_size = 0;
+    my $tablespaceTableRef = [()];
+    
+#    if ($dbh{$inTNS}) {
+    if ($db_info{$inTNS}[$cDB_HANDLE]) {
+
+#	$sth = $dbh{$inTNS}->prepare ($statements{tablespace});
+	$sth = $db_info{$inTNS}[$cDB_HANDLE]->prepare ($statements{tablespace});
+	$rv = $sth->execute;
+	$tablespaceStatus = $cNO_STATUS;
+	$currStatus = $cNO_STATUS;
+
+        #
+	# latch more info table titles
+	#
+	@{$tablespaceTableRef->[0]} = ("Level", 
+				       "Name",
+				       "Used (K)",
+				       "Total (K)",
+				       "% Used");
+	$tablespaceRowCount = 1;
+	$curr_row = $sth->fetchrow_arrayref;
+	while (defined ($curr_row->[0])) {
+
+	    $currStatus = $cNO_STATUS;
+	    $pctused = 0;
+	    $total_size = $curr_row->[1];
+	    $used_size = $curr_row->[2];
+	    if (not defined ($used_size)) {
+		$used_size = 0;
+	    }
+
+	    if ($total_size > 0) {
+		$pctused = 100 * $used_size / $total_size;
+#		print ("T:$total_size U:$used_size P:$pctused\n");
+	    }
+
+	    if ($pctused > $tablespace_threshold_alert) {
+		$currStatus = $cALERT_STATUS;
+	    } elsif ($pctused > $tablespace_threshold_warn) {
+		$currStatus = $cWARNING_STATUS;
+	    } else {
+		$currStatus = $cOK_STATUS;
+	    }
+
+	    #
+	    # escalate warning/alert level if necessary
+	    #
+	    if (($tablespaceStatus == $cNO_STATUS) || 
+		($tablespaceStatus == $cOK_STATUS) ||
+		($currStatus == $cALERT_STATUS)) {
+		$tablespaceStatus = $currStatus;
+	    } elsif (($currStatus == $cALERT_STATUS) &&
+		     ($tablespaceStatus == $cWARNING_STATUS)) {
+		$tablespaceStatus = $currStatus;
+	    }
+	    
+
+#	    print ("C:$currStatus N:$curr_row->[0] U:$used_size T:$total_size PCT:$pctused\n");
+	    @{$tablespaceTableRef->[$tablespaceRowCount]} = 
+		($currStatus, 
+		 $curr_row->[0],
+		 $total_size / 1024,
+		 $used_size / 1024,
+		 $pctused);
+
+
+	    $tablespaceRowCount++;
+	    $curr_row = $sth->fetchrow_arrayref;
+
+	}
+	if ($sth) {
+	    $sth->finish;
+	}
+    }
+
+    showInfoPage ($tablespaceTableRef, 
+		 "tablespace", 
+		 $inTNS, 
+		 "Tablespace Info Page");
+
+    return $tablespaceStatus;
+}
+
+
+
+
+#-----------------------------------------------------------------------
+# 
+#
+# check for slow sql queries based on the number of disk reads (v$sqlarea)
+#
+# NOTE/WARNING:  The way this routine is written may or may not be the
+# best way.  I read ALL sql statements from v$sqlarea in through
+# the cursor, then examine disk_reads per executions to find out if
+# we should consider this a slow query.  We then determine whether to
+# include  it in the more info page.
+#
+#-----------------------------------------------------------------------
+sub getSlowsqlStatus ($$$) {
+    my ($slowsql_threshold_warn, $slowsql_threshold_alert, $inTNS) = @_;
+
+    my $slowsqlStatus = $cNO_STATUS;
+    my $slowsqlTableRef = [()];
+
+#    if ($dbh{$inTNS}) {
+    if ($db_info{$inTNS}[$cDB_HANDLE]) {
+
+#	$sth = $dbh{$inTNS}->prepare ($statements{slowsql});
+	$sth = $db_info{$inTNS}[$cDB_HANDLE]->prepare ($statements{slowsql});
+
+	#
+	# include all sql statements within 2 times the
+	# warning level
+	#
+#	$rv = $sth->execute ($slowsql_threshold_warn * 2);
+	$rv = $sth->execute ();
+
+	$currStatus = $cNO_STATUS;
+
+        #
+	# latch more info table titles
+	#
+	@{$slowsqlTableRef->[0]} = ("Level", 
+				    "Disk I/O",
+				    "Query Text");
+	$slowsqlRowCount = 1;
+	$curr_row = $sth->fetchrow_arrayref;
+	while ($curr_row->[0]) {
+
+	    $disk_reads = $curr_row->[0];
+	    $executions = $curr_row->[1];
+	    if ($executions > 0) {
+		$read_execs = $disk_reads / $executions;
+	    } else {
+		$read_execs = $disk_reads;
+	    }
+
+	    #
+	    # default to ok status, if we find no rows
+	    # to display at all
+	    #
+	    if ($slowsqlStatus == $cNO_STATUS) {
+		$currStatus = $cOK_STATUS;
+	    }
+
+	    if ($read_execs > (2 * $slowsql_threshold_warn)) {
+
+		if ($read_execs < $slowsql_threshold_alert) {
+		    $currStatus = $cALERT_STATUS;
+		} elsif ($read_execs < $slowsql_threshold_warn) {
+		    $currStatus = $cWARNING_STATUS;
+		} else {
+		    $currStatus = $cOK_STATUS;
+		}
+
+	        # 
+	        # escalate warning/alert level if necessary
+	        #
+		if (($slowsqlStatus == $cNO_STATUS) || 
+		    ($slowsqlStatus == $cOK_STATUS) ||
+		    ($currStatus == $cALERT_STATUS)) {
+		    $slowsqlStatus = $currStatus;
+		} elsif (($currStatus == $cALERT_STATUS) &&
+			 ($slowsqlStatus == $cWARNING_STATUS)) {
+		    $slowsqlStatus = $currStatus;
+		}
+		
+		
+		@{$slowsqlTableRef->[$slowsqlRowCount]} = 
+		    ($currStatus, 
+		     $read_execs,
+		     $curr_row->[2]);
+		
+	    }
+	    $slowsqlRowCount++;
+	    $curr_row = $sth->fetchrow_arrayref;
+
+	}
+
+	if ($sth) {
+	    $sth->finish;
+	}
+	
+        # build more info page
+	showInfoPage ($slowsqlTableRef, "slowsql", $inTNS, "Slow SQL Info Page");
+
+    }
+
+
+
+
+    return $slowsqlStatus;
+
+}
+
+
+#-----------------------------------------------------------------------
+# 
+# check the alert log for ORA errors
+#
+# if the KARMA_ALERTLOG_ERRORS table doesn't exist, we'll just report
+# NO_STATUS, and exit.
+#
+#-----------------------------------------------------------------------
+sub getAlertlogStatus ($$$) {
+    my ($alertlog_threshold_warn, $alertlog_threshold_alert, $inTNS) = @_;
+
+    my $alertlogStatus = $cNO_STATUS;
+
+#    $sth = $dbh{$inTNS}->prepare ("SELECT table_name FROM user_tables WHERE table_name = \'KARMA_ALERTLOG_ERRORS\'");
+    $sth = $db_info{$inTNS}[$cDB_HANDLE]->prepare ("SELECT table_name FROM user_tables WHERE table_name = \'KARMA_ALERTLOG_ERRORS\'");
+    $rv = $sth->execute;
+    $row_ref = $sth->fetchrow_arrayref;
+
+    # 
+    # to fix the "Database DOWN!" messaage, which shouldn't come
+    # up if the KARMA_* tables are missing... obviously
+    #
+    @{$alertlogTableRef->[0]} = ("Level",
+				 "Facility",
+				 "Error",
+				 "Time",
+				 "Error Text");
+    
+    $alertlogRowCount = 1;
+
+    if (defined ($row_ref->[0])) {
+
+#	$sth = $dbh{$inTNS}->prepare ($statements{alertlog});
+	$sth = $db_info{$inTNS}[$cDB_HANDLE]->prepare ($statements{alertlog});
+	$rv = $sth->execute;
+
+#	@{$alertlogTableRef->[0]} = ("Level",
+#				     "Facility",
+#				     "Error",
+#				     "Time",
+#				     "Error Text");
+
+	$currStatus = $cOK_STATUS;
+	$alertlogStatus = $cOK_STATUS;
+
+#	$alertlogRowCount = 1;
+	$curr_row = $sth->fetchrow_arrayref;
+
+	while (defined ($curr_row->[0])) {
+
+	    $currStatus = $cOK_STATUS;
+
+
+	    if (($curr_row->[0] =~ /ORA/) && 
+		(($curr_row->[1] == 600) || ($curr_row->[1] == 7445))) {
+		$currStatus = $cALERT_STATUS;
+	    } else {
+		$currStatus = $cWARNING_STATUS;
+	    }
+		
+	    # 
+	    # escalate warning/alert level if necessary
+            #
+	    if (($alertlogStatus == $cNO_STATUS) || 
+		($alertlogStatus == $cOK_STATUS) ||
+		($currStatus == $cALERT_STATUS)) {
+		$alertlogStatus = $currStatus;
+	    } elsif (($currStatus == $cALERT_STATUS) &&
+		     ($alertlogStatus == $cWARNING_STATUS)) {
+		$alertlogStatus = $currStatus;
+	    }
+	    
+	    
+	    @{$alertlogTableRef->[$alertlogRowCount]} = 
+		($currStatus, 
+		 $curr_row->[0],
+		 $curr_row->[1],
+		 $curr_row->[2],
+		 $curr_row->[3]);
+	    
+	    $alertlogRowCount++;
+	    $curr_row = $sth->fetchrow_arrayref;
+	
+
+	}
+
+    }
+
+    if ($sth) {
+	$sth->finish;
+    }
+
+    showInfoPage ($alertlogTableRef, "alertlog", $inTNS, "Alert Log Info Page");
+
+    return $alertlogStatus;
+
+}
+
+
+#-----------------------------------------------------------------------
+# 
+# check for low hit ratios (block buffer, dictionary cache etc)
+#  
+# problem here... Doesn't produce proper more info report.
+#
+#-----------------------------------------------------------------------
+sub getHitratiosStatus ($$$) {
+    my ($hitratios_threshold_warn, $hitratios_threshold_alert, $inTNS) = @_;
+
+    my $hitratiosStatus = $cNO_STATUS;
+    my $hitratiosRowCount = 0;
+    my $consistent_gets = undef;
+    my $physical_reads = undef;
+    my $db_block_gets = undef;
+    my $hitratiosTableRef = [()];
+    my $hitratiosRow = [()];
+
+
+    $hitratiosTableRef = [()];
+    $sth = $db_info{$inTNS}[$cDB_HANDLE]->prepare ($statements{hitratios});
+    $rv = $sth->execute;
+
+    @{$hitratiosTableRef->[0]} = ("Level",
+				 "Consistent Gets",
+				 "DB Block Gets",
+				 "Physical Reads",
+				 "Hit Ratio");
+    
+    $currStatus = $cNO_STATUS;
+    $consistent_gets = undef;
+    $physical_reads = undef;
+    $db_block_gets = undef;
+
+    $hitratiosRowCount = 1;
+    $hitratiosRow = $sth->fetchrow_arrayref;
+
+    while (defined ($hitratiosRow->[0])) {
+
+	if ($hitratiosRow->[0] =~ /consistent gets/) {
+	    $consistent_gets = $hitratiosRow->[1];
+	} elsif ($hitratiosRow->[0] =~ /physical reads/) {
+	    $physical_reads = $hitratiosRow->[1];
+	} elsif ($hitratiosRow->[0] =~ /db block gets/) {
+	    $db_block_gets = $hitratiosRow->[1];
+	}
+
+
+	$currStatus = $cOK_STATUS;
+
+	if (defined ($consistent_gets) && 
+	    defined ($physical_reads) && 
+	    defined ($db_block_gets)) {
+
+	    $mem_gets = $consistent_gets + $db_block_gets;
+	
+	    if ($mem_gets <= 0) {
+		$currStatus = $cALERT_STATUS;
+	    } else {
+		$hitratio = (($mem_gets - $physical_reads) / $mem_gets) * 100; 
+
+		if ($hitratio < $hitratios_threshold_alert) {
+		    $currStatus = $cALERT_STATUS;
+		} elsif ($hitratio < $hitratios_threshold_warn) {
+		    $currStatus = $cWARNING_STATUS;
+		} else {
+		    $currStatus = $cOK_STATUS;
+		}
+	    }		
+	    
+	    # 
+	    # escalate warning/alert level if necessary
+            #
+	    if (($hitratiosStatus == $cNO_STATUS) || 
+		($hitratiosStatus == $cOK_STATUS) ||
+		($currStatus == $cALERT_STATUS)) {
+		$hitratiosStatus = $currStatus;
+	    } elsif (($currStatus == $cALERT_STATUS) &&
+		     ($hitratiosStatus == $cWARNING_STATUS)) {
+		$hitratiosStatus = $currStatus;
+	    }
+
+	    
+	    @{$hitratiosTableRef->[$hitratiosRowCount]} = 
+		($currStatus, 
+		 $consistent_gets,
+		 $db_block_gets,
+		 $physical_reads,
+		 $hitratio);
+
+	    $hitratiosRowCount++;
+	}
+
+	$hitratiosRow = $sth->fetchrow_arrayref;
+
+    }
+
+    if ($sth) {
+	$sth->finish;
+    }
+
+    showInfoPage ($hitratiosTableRef, "hitratios", $inTNS, "Hit Ratios Info Page");
+
+    return $hitratiosStatus;
+
+}
+
+#-----------------------------------------------------------------------
+# 
+# check for tablespace, heap, and b-tree fragmentation in db
+# 
+# 1. all extent sizes in a given tablespace must be the same
+#    as the tablespace defaults, otherwise, flag each one as
+#    potentially fragmentating (flags a WARNING because it 
+#    may not mean any actual objects are affected...)
+#
+# perhaps this #2 should be with getExtentsStatus
+#
+# 2. extent size must be a multiple of db_block_size *
+#    db_file_multiblock_read_count, which must be the same
+#    as the initial/next extent of the tablespace
+#
+# Not sure if the above is the best implementation.  Looking
+# for suggestions on how to implement this.
+#
+#-----------------------------------------------------------------------
+sub getFragmentationStatus ($$$) {
+    my ($fragmentation_threshold_warn, 
+	$fragmentation_threshold_alert, 
+	$inTNS) = @_;
+
+    my $temp = $fragmentation_threshold_warn + $fragmentation_threshold_alert;
+    my $fragmentationStatus = $cNO_STATUS;
+    my $fragmentationRef = [];
+    #my $fragmentationData = [];
+    my $currStatus = $cNO_STATUS;
+    $db_block_size = 0;
+    $db_file_multiblock_read_count = 0;
+
+    $sth = $db_info{$inTNS}[$cDB_HANDLE]->prepare ("SELECT name, value FROM v\$parameter WHERE name IN ('db_block_size', 'db_file_multiblock_read_count')");
+    $rv = $sth->execute;
+
+    $array_ref = $sth->fetchrow_arrayref;
+    while (defined ($array_ref->[0])) {
+
+
+	if ($array_ref->[0] =~ /db_block_size/) {
+	    $db_block_size = $array_ref->[1];
+	} elsif ($array_ref->[0] =~ /db_file_multiblock_read_count/) {
+	    $db_file_multiblock_read_count = $array_ref->[1];
+	}
+
+
+	$array_ref = $sth->fetchrow_arrayref;
+    }
+    if ($sth) {
+	$sth->finish;
+    }
+
+    #
+    #
+    #
+    $block_multiple = 0;
+    if ($db_block_size && $db_file_multiblock_read_count) {
+	$block_multiple = $db_block_size * $db_file_multiblock_read_count;
+    }
+
+    if ($block_multiple > 0) {
+
+
+	$sth = $db_info{$inTNS}[$cDB_HANDLE]->prepare ($statements{fragmentation});
+	$rv = $sth->execute;
+	$array_ref = $sth->fetchrow_arrayref;
+
+	if (defined ($array_ref->[0])) {
+	    $fragmentationStatus = $cOK_STATUS;
+	}
+
+	@{$fragmentationTableRef->[0]} = ("Level",
+					  "Type",
+					  "Name",
+					  "Initial",
+					  "Next",
+					  "% Increase");
+	
+	$currStatus = $cNO_STATUS;
+	$fragmentationRowCount = 1;
+	while (defined ($array_ref->[0])) {
+	    
+	    #
+	    # store the tablespace data for later
+	    # 
+	    # This is the size we want all our initial and
+	    # next extents to be
+	    #
+	    $fragmentationData{$array_ref->[0]} = $array_ref->[1];
+
+
+	    #
+	    # right now we're warning if any of our tablespaces have a 
+	    # initial or next extent which is not a multiple of our
+	    # db_block_size * db_file_multiblock_read_count or if
+	    # they have a % increase which is non-zero.
+	    #
+	    if (($array_ref->[1] % $block_multiple != 0) || 
+		($array_ref->[2] % $block_multiple != 0) ||
+		($array_ref->[3] != 0)) {
+#		print ("I:$array_ref->[1] N:$array_ref->[2] M:$block_multiple\n");
+		$currStatus = $cWARNING_STATUS;
+
+	    #
+	    # otherwise ok status
+            #
+	    } else {
+		$currStatus = $cOK_STATUS;
+	    }
+
+	    
+	    # 
+	    # escalate warning/alert level if necessary
+            #
+	    if (($fragmentationStatus == $cNO_STATUS) || 
+		($fragmentationStatus == $cOK_STATUS) ||
+		($currStatus == $cALERT_STATUS)) {
+		$fragmentationStatus = $currStatus;
+	    } elsif (($currStatus == $cALERT_STATUS) &&
+		     ($fragmentationStatus == $cWARNING_STATUS)) {
+		$fragmentationStatus = $currStatus;
+	    }
+
+	    
+	    @{$fragmentationTableRef->[$fragmentationRowCount]} = 
+		($currStatus, 
+		 "Tablespace",
+		 $array_ref->[0],
+		 $array_ref->[1],
+		 $array_ref->[2],
+		 $array_ref->[3]);
+
+
+
+	    $fragmentationRowCount++;
+
+	    $array_ref = $sth->fetchrow_arrayref;
+	}
+
+	if ($sth) {
+	    $sth->finish;
+	}
+
+
+	$astatement = "SELECT owner, segment_name, segment_type, tablespace_name, initial_extent, next_extent, pct_increase FROM dba_segments WHERE owner NOT IN ('SYS', 'SYSTEM')";
+	$sth = $db_info{$inTNS}[$cDB_HANDLE]->prepare ($astatement);
+	$rv = $sth->execute;
+
+	$array_ref = $sth->fetchrow_arrayref;
+	while ($array_ref->[0]) {
+
+	    if (($array_ref->[4] != $fragmentationData{$array_ref->[3]}) ||
+		($array_ref->[5] != $fragmentationData{$array_ref->[3]})) {
+		$currStatus = $cALERT_STATUS;
+	    } else {
+		$currStatus = $cOK_STATUS;
+	    }
+	    
+	    # 
+	    # escalate warning/alert level if necessary
+            #
+	    if (($fragmentationStatus == $cNO_STATUS) || 
+		($fragmentationStatus == $cOK_STATUS) ||
+		($currStatus == $cALERT_STATUS)) {
+		$fragmentationStatus = $currStatus;
+	    } elsif (($currStatus == $cALERT_STATUS) &&
+		     ($fragmentationStatus == $cWARNING_STATUS)) {
+		$fragmentationStatus = $currStatus;
+	    }
+
+	    
+	    @{$fragmentationTableRef->[$fragmentationRowCount]} = 
+		($currStatus, 
+		 $array_ref->[2],
+		 "$array_ref->[0].$array_ref->[1]",
+		 $array_ref->[4],
+		 $array_ref->[5],
+		 $array_ref->[6]);
+
+	    $fragmentationRowCount++;
+	    $array_ref = $sth->fetchrow_arrayref;
+	}
+
+    }
+
+    showInfoPage ($fragmentationTableRef, "fragmentation", $inTNS, "Fragmentation Info Page");
+
+    return $fragmentationStatus;
+
+}
+
+#-----------------------------------------------------------------------
+# 
+# returns checks load average, %idle, and i/o wait
+# not sure how to implement this for remote machines yet
+#
+#-----------------------------------------------------------------------
+sub getOSStatus ($$$) {
+    my ($os_threshold_warn, $os_threshold_alert, $inTNS) = @_;
+
+    my $osStatus = $cNO_STATUS;
+    my $curr_row = [];
+    my $osTableRef = [()];
+
+#    $sth = $dbh{$inTNS}->prepare ("SELECT table_name FROM user_tables WHERE table_name = \'KARMA_OS_STATS\'");
+    $sth = $db_info{$inTNS}[$cDB_HANDLE]->prepare ("SELECT table_name FROM user_tables WHERE table_name = \'KARMA_OS_STATS\'");
+    $rv = $sth->execute;
+    $curr_row = $sth->fetchrow_arrayref;
+
+    #
+    # display one row regardless, so the "No Data Found." message
+    # will come up as appropriate
+    #
+    $osTableRef = [()];
+    @{$osTableRef->[0]} = ("Level", 
+			   "1 Min", 
+			   "5 Min", 
+			   "15 Min",
+			   "% Idle",
+			   "Time");
+    
+    $osRowCount = 1;
+
+    if (defined ($curr_row->[0])) {
+
+#	$sth = $dbh{$inTNS}->prepare ($statements{os});
+	$sth = $db_info{$inTNS}[$cDB_HANDLE]->prepare ($statements{os});
+	$rv = $sth->execute;
+
+	#$osTableRef = [()];
+	#@{$osTableRef->[0]} = ("Level", 
+	#		      "1 Min", 
+	#		      "5 Min", 
+	#		      "15 Min",
+	#		      "% Idle",
+	#		      "Time");
+	#$osRowCount = 1;
+
+	$curr_row = $sth->fetchrow_arrayref;
+	while (defined ($curr_row->[0])) {
+	    
+	    if ($curr_row->[0] > $os_threshold_alert) {
+		$currStatus = $cALERT_STATUS;
+	    } elsif ($curr_row->[0] > $os_threshold_warn) {
+		$currStatus = $cWARNING_STATUS;
+	    } else {
+		$currStatus = $cOK_STATUS;
+	    }
+
+	    #
+	    # escalate warning/alert level if necessary
+	    #
+	    if (($osStatus == $cNO_STATUS) || 
+		($osStatus == $cOK_STATUS) ||
+		($currStatus == $cALERT_STATUS)) {
+		$osStatus = $currStatus;
+	    } elsif (($currStatus == $cALERT_STATUS) &&
+		     ($osStatus == $cWARNING_STATUS)) {
+		$osStatus = $currStatus;
+	    }
+	    
+	    @{$osTableRef->[$osRowCount]} = 
+		($currStatus, 
+		 $curr_row->[0],
+		 $curr_row->[1],
+		 $curr_row->[2],
+		 $curr_row->[3],
+		 $curr_row->[4]);
+
+
+	    $osRowCount++;
+	    $curr_row = $sth->fetchrow_arrayref;
+	}
+    }
+
+    if ($sth) {
+	$sth->finish;
+    }
+
+    showInfoPage ($osTableRef, "os", $inTNS, "OS Info Page");
+
+    return $osStatus;
+
+}
+
+#-----------------------------------------------------------------------
+# 
+# checks the MTS shared server and dispatcher processes to make sure
+# there isn't too much contention
+#
+#-----------------------------------------------------------------------
+sub getMTSStatus ($$$) {
+    my ($mts_threshold_warn, $mts_threshold_alert, $inTNS) = @_;
+
+    my $mtsStatus = $cNO_STATUS;
+    my $busy = 0;
+    my $busy_idle = 0;
+    my $busy_percent = 0;
+    my $curr_row = [()];
+    my $mtsRowCount = 0;
+    my $mtsTableRef = [()];
+
+#    $sth = $dbh{$inTNS}->prepare($statements{mts});
+    $sth = $db_info{$inTNS}[$cDB_HANDLE]->prepare($statements{mts});
+    $rv = $sth->execute;
+    
+    $mtsTableRef = [()];
+    @{$mtsTableRef->[0]} = ("Level", 
+			   "Name", 
+			   "Busy", 
+			   "Idle",
+			   "% Busy");
+    
+    
+    $mtsRowCount = 1;
+
+    $curr_row = $sth->fetchrow_arrayref;    
+    while (defined ($curr_row->[0])) {
+	$busy = $curr_row->[1];
+	$idle = $curr_row->[2];
+	$busy_idle = $busy + $idle;
+	$busy_percent = 0;
+	if ($busy_idle) {
+	    $busy_percent = $busy/$busy_idle * 100;
+
+	    if ($busy_percent > $mts_threshold_alert) {
+		$currStatus = $cALERT_STATUS;
+	    } elsif ($busy_percent > $mts_threshold_warn) {
+		$currStatus = $cWARNING_STATUS;
+	    } else {
+		$currStatus = $cOK_STATUS;
+	    }
+	}
+
+	#
+	# escalate warning/alert level if necessary
+	#
+	if (($mtsStatus == $cNO_STATUS) || 
+	    ($mtsStatus == $cOK_STATUS) ||
+	    ($currStatus == $cALERT_STATUS)) {
+	    $mtsStatus = $currStatus;
+	} elsif (($currStatus == $cALERT_STATUS) &&
+		 ($mtsStatus == $cWARNING_STATUS)) {
+	    $mtsStatus = $currStatus;
+	}
+	
+	@{$mtsTableRef->[$mtsRowCount]} = 
+	    ($currStatus, 
+	     $curr_row->[0],
+	     $busy,
+	     $idle,
+	     $busy_percent,
+	     $curr_row->[4]);
+
+
+	$mtsRowCount++;
+	$curr_row = $sth->fetchrow_arrayref;
+    }
+
+    if ($sth) {
+	$sth->finish;
+    }
+
+    showInfoPage ($mtsTableRef, "mts", $inTNS, "MTS Info Page");
+
+    return $mtsStatus;
+
+}
+
+#-----------------------------------------------------------------------
+# 
+#
+#-----------------------------------------------------------------------
+sub getUpStatus ($) {
+    my ($inTNS) = @_;
+    my $upStatus = $cALERT_STATUS;
+    my $upRow = [()];
+    my $upTableRef = [()];
+    my $upRowCount = 0;
+
+    $upStatus = $cALERT_STATUS;
+    $upRow = [()];
+    $upTableRef = [()];
+    $upRowCount = 0;
+
+    #
+    # attempt to connect again at regular intervals
+    # in case the db comes back up
+    # 
+    if (not (defined ($db_info{$inTNS}[$cDB_HANDLE]))) {
+	$db_info{$inTNS}[$cDB_HANDLE] = DBI->connect ("DBI:Oracle:$inTNS", 
+					     $db_info{$inTNS}[$cDB_USER],
+					     $db_info{$inTNS}[$cDB_PASS],
+						      {RaiseError => 0,
+						       PrintError => 0});
+	if (defined ($DBI::errstr))  {
+	    print LFILE ("$currTime - $DBI::errstr\n");
+	}
+    }
+
+
+    #
+    # if our database handle is ok, we're up...
+    #
+    if (defined ($db_info{$inTNS}[$cDB_HANDLE])) {
+
+#	print ("$inTNS - We have db handle...\n");
+	$upStatus = $cOK_STATUS;
+
+	$sth = $db_info{$inTNS}[$cDB_HANDLE]->prepare($statements{up});
+	$rv = $sth->execute;
+	
+	$upTableRef = [()];
+	@{$upTableRef->[0]} = ("Level", 
+				"Statistic", 
+				"Value");
+	
+	$upRowCount = 1;
+
+	$upRow = $sth->fetchrow_arrayref;
+	while (defined ($upRow->[0])) {
+	    @{$upTableRef->[$upRowCount]} = 
+		($cNO_STATUS, 
+		 $upRow->[0],
+		 $upRow->[1]);
+	    	    
+	    $upRowCount++;
+	    $upRow = $sth->fetchrow_arrayref;
+
+	}
+
+	showInfoPage ($upTableRef, "up", $inTNS, "Up Info Page");
+
+    } else {
+
+	#
+	# don't show unless we have a db handle
+	#
+	showInfoPage (undef, "up", $inTNS, "Up Info Page");
+    }
+
+    return $upStatus;
+}
+
+
+#-----------------------------------------------------------------------
+# 
+#
+#-----------------------------------------------------------------------
+sub getDbStatus ($) {
+    my ($inTNS) = @_;
+    my $dbStatus = $cOK_STATUS;
+    my $dbRow = [()];
+    my $dbTableRef = [()];
+    my $dbRowCount = 0;
+
+
+    if (defined ($db_info{$inTNS}[$cDB_HANDLE])) {
+	
+	$dbStatus = $cOK_STATUS;
+
+	$sth = $db_info{$inTNS}[$cDB_HANDLE]->prepare($statements{db});
+	$rv = $sth->execute;
+	
+	$dbTableRef = [()];
+	@{$dbTableRef->[0]} = ("Level", 
+				"Parameter", 
+				"Value");
+	
+	$dbRowCount = 1;
+
+	$dbRow = $sth->fetchrow_arrayref;
+	while (defined ($dbRow->[0])) {
+	    @{$dbTableRef->[$dbRowCount]} = 
+		($cNO_STATUS, 
+		 $dbRow->[0],
+		 $dbRow->[1]);
+	    	    
+	    $dbRowCount++;
+	    $dbRow = $sth->fetchrow_arrayref;
+	}
+
+	showInfoPage ($dbTableRef, "db", $inTNS, "DB Info Page");
+
+    } else {
+	showInfoPage (undef, "db", $inTNS, "DB Info Page");
+    }
+
+    return $dbStatus;
+}
+
+
+#-----------------------------------------------------------------------
+# 
+# Check object extents 
+#  1. an object which is at it's maxextents (or near)
+# NOT IMPLEMENTED YET:
+#  2. an object whose next extent won't fit in the tablespace
+#
+#-----------------------------------------------------------------------
+sub getExtentsStatus ($$$) {
+    my ($extents_threshold_warn, $extents_threshold_alert, $inTNS) = @_;
+
+    my $extentsStatus = $cNO_STATUS;
+    my $currStatus = $cNO_STATUS;
+    my $extentsTableRef = [()];
+    my $extentsRowCount = 1;
+    my $extentsRow = [()];
+
+    $extentsTableRef = [()];
+    @{$extentsTableRef->[0]} = ("Level", 
+				"Name",
+				"Owner",
+				"Current", 
+				"Max");
+
+    $extentsRowCount = 1;
+
+    $sth = $db_info{$inTNS}[$cDB_HANDLE]->prepare ($statements{extents});
+    
+    $rv = $sth->execute;
+
+    $extents_row = $sth->fetchrow_arrayref;
+    while (defined ($extents_row->[0])) {
+
+	#
+	# looks like we're at alert status...
+	#
+	if ($extents_row->[2] ==
+	    ($extents_row->[1] - $extents_threshold_alert)) {
+	    $currStatus = $cALERT_STATUS;
+
+	#
+	# warn status... don't set if we're already at cALERT_STATUS
+        #
+	} elsif ($extents_row->[2] == 
+		  ($extents_row->[1] - $extents_threshold_warn)) {
+	    $currStatus = $cWARNING_STATUS;
+
+	# 
+	# if we haven't set the status yet, we're at ok status.  This
+        # may change with subsequent iterations of this loop
+	#
+	} else {
+	    $currStatus = $cOK_STATUS;
+	}
+
+	#
+	# escalate warning/alert level if necessary
+	#
+	if (($extentsStatus == $cNO_STATUS) || 
+	    ($extentsStatus == $cOK_STATUS) ||
+	    ($currStatus == $cALERT_STATUS)) {
+	    $extentsStatus = $currStatus;
+	} elsif (($currStatus == $cALERT_STATUS) &&
+		 ($extentsStatus == $cWARNING_STATUS)) {
+	    $extentsStatus = $currStatus;
+	}
+	
+	if (($currStatus == $cALERT_STATUS) ||
+	    ($currStatus == $cWARNING_STATUS)) {
+	    @{$extentsTableRef->[$extentsRowCount]} = 
+		($currStatus, 
+		 $extents_row->[0],
+		 $extents_row->[3],
+		 $extents_row->[2],
+		 $extents_row->[1]);
+	    
+
+	    $extentsRowCount++;
+	}
+	$extents_row = $sth->fetchrow_arrayref;
+    }
+    
+    if ($sth) {
+	$sth->finish;
+    }
+
+    showInfoPage ($extentsTableRef, "extents", $inTNS,  "Extents Info Page");
+
+    return $extentsStatus;
+
+}
+
+
+#-----------------------------------------------------------------------
+#
+# convert the given time to a string
+#
+#-----------------------------------------------------------------------
+sub getTimeString ($) {
+    my ($inTime) = @_;
+
+    my $timeStr = "";
+    my $hourStr = "";
+    my $sec =  $min = $hour = $mday = $mon = 
+       $year = $wday = $yday = $isdst = 0;
+
+
+    #
+    # gmtime is 4 hours forward... didn't know the correct way to handle
+    # this...
+    #
+#    $inTime -= (4 * 60 * 60);
+#    ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = gmtime ($inTime);
+
+    #
+    # it's so much easier when you know the right function to do the job
+    #
+    ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime ($inTime);
+
+    #
+    # adjust minutes, or just put hour and minutes together for time
+    # string
+    #
+    if ($hour < 10) {
+	$hourStr = "0$hour";
+    } else {
+	$hourStr = "$hour";
+    }
+    if ($min < 10) {
+	$timeStr = "$hourStr:0$min";
+    } else {
+	$timeStr = "$hourStr:$min";
+    }
+
+    return $timeStr;
+}
+
+#-----------------------------------------------------------------------
+#
+#
+#
+#-----------------------------------------------------------------------
+sub getInfo ($$) {
+    my ($inTNS, $inMinutes) = @_;
+
+    #
+    # we do this in readConfig now, and leave them between
+    # iterations of "main" because not every service is updated
+    # on the minute.  old values are then kept, and services
+    # that are run have their values updated
+    #
+    my $upStatus = 0;
+    my $osStatus = 0;
+    my $redologStatus = 0;
+    my $alertlogStatus = 0;
+    my $mtsStatus = 0;
+    my $fragmentationStatus = 0;
+    my $tablespaceStatus = 0;
+    my $rollbackStatus = 0;
+    my $extentsStatus = 0;
+    my $slowsqlStatus = 0;
+    my $latchStatus = 0;
+    my $hitratiosStatus = 0; 
+    my $dbStatus = 0;
+
+
+    $upStatus = $cALERT_STATUS;
+    $osStatus = $cNO_STATUS;
+    $redologStatus = $cNO_STATUS;
+    $alertlogStatus = $cNO_STATUS;
+    $mtsStatus = $cNO_STATUS;
+    $fragmentationStatus = $cNO_STATUS;
+    $tablespaceStatus = $cNO_STATUS;
+    $rollbackStatus = $cNO_STATUS;
+    $extentsStatus = $cNO_STATUS;
+    $slowsqlStatus = $cNO_STATUS;
+    $latchStatus = $cNO_STATUS;
+    $hitratiosStatus = $cNO_STATUS; 
+    $dbStatus = $cNO_STATUS;
+
+
+
+    $upStatus = getUpStatus ($inTNS);
+    $dbStatus = getDbStatus ($inTNS);
+
+    if ($upStatus == $cOK_STATUS) {
+
+	$osStatus = $stats{os}{$inTNS};
+	$redologStatus = $stats{redolog}{$inTNS};
+	$alertlogStatus = $stats{alertlog}{$inTNS};
+	$mtsStatus = $stats{mts}{$inTNS};
+	$fragmentationStatus = $stats{fragmentation}{$inTNS};
+	$tablespaceStatus = $stats{tablespace}{$inTNS};
+	$rollbackStatus = $stats{rollback}{$inTNS};
+	$extentsStatus = $stats{extents}{$inTNS};
+	$slowsqlStatus = $stats{slowsql}{$inTNS};
+	$latchStatus = $stats{latch}{$inTNS};
+	$hitratiosStatus = $stats{hitratios}{$inTNS};
+    }
+# else {
+#	print ("$inTNS - STATUS: $upStatus\n");
+#    }
+    
+#    if (not ($db_info{$inTNS}[$cDB_HANDLE])) {
+#	$upStatus = $cALERT_STATUS;
+#    } else {
+#	$upStatus = $cOK_STATUS;
+
+    if ($upStatus == $cOK_STATUS) {
+
+	#
+	# os statistics
+	#
+	if (($config_info{os}[0] > 0) &&
+	    ($inMinutes % $config_info{os}[0] == 0)) {
+	    showInfoPage ($testRef, "os", $inTNS, "OS Info Page");
+	    $osStatus = getOSStatus ($config_info{os}[1],
+				     $config_info{os}[2],
+				     $inTNS);
+	}
+
+	#
+	# mts statistics
+	#
+	if (($config_info{mts}[0] > 0) &&
+	    ($inMinutes % $config_info{mts}[0] == 0)) {
+	    $mtsStatus = getMTSStatus ($config_info{mts}[1],
+				       $config_info{mts}[2],
+				       $inTNS);
+	}
+	#
+	# redolog stats
+	#
+	if (($config_info{redolog}[0] > 0) &&
+	    ($inMinutes % $config_info{redolog}[0] == 0)) {
+	    $redologStatus = getRedologStatus ($config_info{redolog}[1],
+					    $config_info{redolog}[2],
+					    $inTNS);
+	}
+
+	if (($config_info{rollback}[0] > 0) && 
+	    ($inMinutes % $config_info{rollback}[0] == 0)) {
+	    $rollbackStatus = getRollbackStatus ($config_info{rollback}[1],
+					     $config_info{rollback}[2],
+					     $inTNS);
+	}
+	if (($config_info{latch}[0] > 0) &&
+	    ($inMinutes % $config_info{latch}[0] == 0)) {
+	    $latchStatus = getLatchStatus ($config_info{latch}[1],
+					   $config_info{latch}[2],
+					   $inTNS);
+	}
+	if (($config_info{tablespace}[0] > 0) &&
+	    ($inMinutes % $config_info{tablespace}[0] == 0)) {
+	    $tablespaceStatus = getTablespaceStatus ($config_info{tablespace}[1],
+					       $config_info{tablespace}[2],
+					       $inTNS);
+	}
+	if (($config_info{slowsql}[0] > 0) &&
+	    ($inMinutes % $config_info{slowsql}[0] == 0)) {
+	    $slowsqlStatus = getSlowsqlStatus ($config_info{slowsql}[1],
+					   $config_info{slowsql}[2],
+					   $inTNS);
+	}
+	if (($config_info{alertlog}[0] > 0) &
+	    ($inMinutes % $config_info{alertlog}[0] == 0)) {
+	    $alertlogStatus = getAlertlogStatus ($config_info{alertlog}[1],
+					    $config_info{alertlog}[2],
+					    $inTNS);
+	}
+	if (($config_info{hitratios}[0] > 0) &&
+	    ($inMinutes % $config_info{hitratios}[0] == 0)) {
+	    $hitratiosStatus = getHitratiosStatus ($config_info{hitratios}[1],
+					    $config_info{hitratios}[2],
+					    $inTNS);
+	}
+	if (($config_info{fragmentation}[0] > 0) &&
+	    ($inMinutes % $config_info{fragmentation}[0] == 0)) {
+	    $fragmentationStatus = getFragmentationStatus
+		($config_info{fragmentation}[1],
+		 $config_info{fragmentation}[2],
+		 $inTNS);
+	}
+	if (($config_info{extents}[0] > 0) &&
+	    ($inMinutes % $config_info{extents}[0] == 0)) {
+	    $extentsStatus = getExtentsStatus ($config_info{extents}[1],
+					   $config_info{extents}[2],
+					   $inTNS);
+	}
+
+#	if ($dbh) {
+#	    $dbh->disconnect;
+#	}
+
+	
+    }
+
+#    print ("getInfo: $inTNS - UP:$upStatus, OS:$osStatus, MTS:$mtsStatus, RDO:$redologStatus, RLB:$rollbackStatus LT:$latchStatus TS:$tablespaceStatus SS:$slowsqlStatus AL:$alertlogStatus HR:$hitratiosStatus FR:$fragmentationStatus EX:$extentsStatus\n");
+
+
+    return ($upStatus, $osStatus, $mtsStatus, $redologStatus,
+	    $rollbackStatus, $latchStatus, $tablespaceStatus,
+            $slowsqlStatus, $alertlogStatus, $hitratiosStatus,
+            $fragmentationStatus, $extentsStatus);
+}
+
+
+#-----------------------------------------------------------------------
+#
+#
+#
+#-----------------------------------------------------------------------
+sub showKarmaTableHeader () {
+
+#    print INDFILE ("<TR >\n");
+#    print INDFILE ("<TD bgcolor=\"$cHD_BG_COLOR\" cellspacing=0 cellpadding=0 ALIGN=CENTER><H4>\n");
+#    print INDFILE ("<I><A HREF=\"help/$files{help}{db}\">db</A></I>\n");
+#    print INDFILE ("</H4></TD>\n");
+    print INDFILE ("<tr bgcolor=\"$cMAIN_TABLE_BG\" align=\"center\" valign=\"middle\"> \n");
+
+
+    #
+    # this will be added to the hash...
+    #
+    print INDFILE ("<td height=\"$cSTATUS_HEIGHT\" width=\"$cSTATUS_WIDTH\"><font size=\"4\"><b>\n");
+    print INDFILE ("<font face=\"Arial, Helvetica, sans-serif\"\n");
+    print INDFILE ("color=\"$cKARMA_TEXT_COLOR\">\n");
+    print INDFILE ("<A HREF=\"help/$files{help}{db}\">$names{short}{db}</A>\n");
+    print INDFILE ("</font></b></font></td>\n");
+
+    foreach $key (keys %config_info) {
+	if ($config_info{$key}[0] > 0) {
+#	    print INDFILE ("<TD bgcolor=\"$cHD_BG_COLOR\" cellspacing=0 cellpadding=0 ALIGN=CENTER><H4>\n");
+#	    print INDFILE ("<I><A HREF=\"help/$files{help}{$key}\">$names{short}{$key}</A></I>\n");
+
+	    #
+	    # new stuff
+	    #
+	    print INDFILE ("<td height=\"$cSTATUS_HEIGHT\" width=\"$cSTATUS_WIDTH\"><font size=\"4\"><b>\n");
+	    print INDFILE ("<font face=\"Arial, Helvetica, sans-serif\"\n");
+	    print INDFILE ("color=\"$cKARMA_TEXT_COLOR\">\n");
+
+	    print INDFILE ("<A HREF=\"help/$files{help}{$key}\">$names{short}{$key}</A>\n");
+
+
+#	    print INDFILE ("<I>$key</I>\n");
+#	    print INDFILE ("$key\n");
+#	    print INDFILE ("</H4></TD>\n");
+	    print INDFILE ("</font></b></font></td>\n");
+	}
+    }
+
+    print INDFILE ("</TR>\n");
+
+}
+
+
+#-----------------------------------------------------------------------
+#
+#
+#
+#-----------------------------------------------------------------------
+sub showKarmaTableRow ($$) { 
+    #my ($inRow, $inTNS, $inMinutes) = @_;
+    my ($inTNS, $inMinutes) = @_;
+
+#    print INDFILE ("<TR ><TD><H5>$db[$inRow][0]</H5></TD>\n");
+#    print INDFILE ("<TR ><TD><H5><A HREF=\"info/$inTNS.$files{info}{db}\">$inTNS</A></H5></TD>\n");
+
+
+    print INDFILE ("<td width=\"$cHEAD_HEIGHT\" height=\"$cSTATUS_HEIGHT\"><font face=\"Arial, Helvetica, sans-serif\" color=\"$cKARMA_TEXT_COLOR\"><a href=\"generic_info.html\" target=\"main\">\n");
+    print INDFILE ("<A HREF=\"info/$inTNS.$files{info}{db}\">$inTNS</A>\n");
+    print INDFILE ("</a></font></td>\n");
+
+    foreach $key (keys %config_info) {
+	if ($config_info{$key}[0] > 0) {
+	    #&& ($inMinutes % $config_info{$key}[0] == 0)) {
+	    #print INDFILE ("<TD ALIGN=CENTER>\n");
+	    print INDFILE ("<td align=\"center\" valign=\"middle\">\n");
+
+	    showServiceStatus ($key, $inTNS);
+
+	    print INDFILE ("</TD>\n");
+	    
+	}
+    }
+
+    print INDFILE ("</TR>\n");
+
+}
+
+
+#-----------------------------------------------------------------------
+#
+# print the help message and exit
+#
+#-----------------------------------------------------------------------
+sub print_help {
+
+    print ("\n");
+    print (" v - print version info and exit\n");
+    print (" h - print this help info\n");
+    print (" k - karma root directory\n");
+    print (" w - print the warranty\n");
+    print (" c - specify the karma configuration file\n");
+    print (" l - specify logfile (default is stdout)\n");
+    print ("\n");
+    print ("$0 [-h] [-k karma_root] [-c karma.conf]\n");
+    
+    exit;
+
+}
+
+
+#-----------------------------------------------------------------------
+#
+# print version and exit
+#
+#-----------------------------------------------------------------------
+sub print_version () {
+    print 
+	"\n",
+	"  Karma v$VERSION Copyright (C) 1999 Sean Hull <shull\@pobox.com>\n",
+	"  Karma comes comes with ABSOLUTELY NO WARRANTY; for details\n",
+	"  type \"karmad -w\".  This is free software, and you are\n",
+	"  welcome to redistribute it under certain conditions.\n";
+
+    exit ;
+}
+
+#-----------------------------------------------------------------------
+#
+# GNU General Public License Warranty
+#
+#-----------------------------------------------------------------------
+sub print_warranty () {
+    print 
+	"\n",
+	"   Copyright (C) 1999  Sean Hull <shull\@pobox.com>\n",
+	"\n",
+	"   This program is free software; you can redistribute it and/or modify\n",
+	"   it under the terms of the GNU General Public License as published by\n",
+	"   the Free Software Foundation; either version 2 of the License, or\n",
+	"   (at your option) any later version.\n",
+	"\n",
+	"   This program is distributed in the hope that it will be useful,\n",
+	"   but WITHOUT ANY WARRANTY; without even the implied warranty of\n",
+	"   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n",
+	"   GNU General Public License for more details.\n",
+	"\n",
+	"   You should have received a copy of the GNU General Public License\n",
+	"   along with this program; if not, write to the Free Software\n",
+	"   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA\n",
+	"\n";
+
+
+   exit;
+}
+
+#-----------------------------------------------------------------------
+#
+# read the configuration file
+#
+# only parameter is the file to open for reading config info
+#
+#-----------------------------------------------------------------------
+sub readConfig ($) {
+    my ($inFile) = @_;
+
+    # open file
+    open (FILE, "$inFile");
+
+    # iterate on lines
+    my $eofile = 0;
+    my $db_count = 0;
+    my $curr_line = "";
+    my @curr_array = ();
+    while (!$eofile) {
+	
+	$eofile = !($curr_line = <FILE>);
+	
+	#
+	# ignore comment lines and blank lines
+	#
+	while ((!$eofile) && (($curr_line =~ /^ *\#/) ||
+               ($curr_line =~ /^ *$/))) {
+	    $eofile = !($curr_line = <FILE>);
+	}
+
+	if ($curr_line) {
+
+	    # remove the eol character
+	    chop ($curr_line);
+
+
+	    @curr_array = split (":", $curr_line);
+	    if ($curr_array[0] =~ /karma/) {
+		
+		# tnsname
+		$theTNS = uc $curr_array[1];
+		
+		# username
+		$theUser = $curr_array[2];
+		$db_info{$theTNS}[$cDB_USER] = $theUser;
+		
+		# password
+		$thePass = $curr_array[3];
+		$db_info{$theTNS}[$cDB_PASS] = $thePass;
+
+		# karma refresh
+		$db_info{$theTNS}[$cDB_REFRESH] = $curr_array[4];
+
+		# connect to the db
+		$db_info{$theTNS}[$cDB_HANDLE] = DBI->connect 
+		    ("DBI:Oracle:$theTNS", 
+		     $theUser,
+		     $thePass,
+		     {RaiseError => 0,
+		      PrintError => 0});
+
+		#
+		# log any errors
+		#
+		if (defined ($DBI::errstr)) {
+		    print LFILE ("$currTime - $DBI::errstr\n");
+		}
+
+
+	    } elsif ($curr_array[0] =~ /refresh/) {
+		$config_info{up}[0] = $curr_array[1];
+		$config_info{up}[1] = $curr_array[2];
+		$config_info{up}[2] = 0;
+	    } elsif ($curr_array[0] =~ /redologs/) {
+		$config_info{redolog}[0] = $curr_array[1];
+		$config_info{redolog}[1] = $curr_array[2];
+		$config_info{redolog}[2] = $curr_array[3];
+	    } elsif ($curr_array[0] =~ /^os$/) {
+		$config_info{os}[0] = $curr_array[1];
+		$config_info{os}[1] = $curr_array[2];
+		$config_info{os}[2] = $curr_array[3];
+	    } elsif ($curr_array[0] =~ /rollback/) {
+		$config_info{rollback}[0] = $curr_array[1];
+		$config_info{rollback}[1] = $curr_array[2];
+		$config_info{rollback}[2] = $curr_array[3];
+	    } elsif ($curr_array[0] =~ /tablespace/) {
+		$config_info{tablespace}[0] = $curr_array[1];
+		$config_info{tablespace}[1] = $curr_array[2];
+		$config_info{tablespace}[2] = $curr_array[3];
+	    } elsif ($curr_array[0] =~ /slowsql/) {
+		$config_info{slowsql}[0] = $curr_array[1];
+		$config_info{slowsql}[1] = $curr_array[2];
+		$config_info{slowsql}[2] = $curr_array[3];
+	    } elsif ($curr_array[0] =~ /alertlog/) {
+		$config_info{alertlog}[0] = $curr_array[1];
+		$config_info{alertlog}[1] = $curr_array[2];
+		$config_info{alertlog}[2] = $curr_array[3];
+	    } elsif ($curr_array[0] =~ /hitratios/) {
+		$config_info{hitratios}[0] = $curr_array[1];
+		$config_info{hitratios}[1] = $curr_array[2];
+		$config_info{hitratios}[2] = $curr_array[3];
+	    } elsif ($curr_array[0] =~ /fragmentation/) {
+		$config_info{fragmentation}[0] = $curr_array[1];
+		$config_info{fragmentation}[1] = $curr_array[2];
+		$config_info{fragmentation}[2] = $curr_array[3];
+	    } elsif ($curr_array[0] =~ /extents/) {
+		$config_info{extents}[0] = $curr_array[1];
+		$config_info{extents}[1] = $curr_array[2];
+		$config_info{extents}[2] = $curr_array[3];
+	    } elsif ($curr_array[0] =~ /latch/) {
+		$config_info{latch}[0] = $curr_array[1];
+		$config_info{latch}[1] = $curr_array[2];
+		$config_info{latch}[2] = $curr_array[3];
+	    } elsif ($curr_array[0] =~ /mts/) {
+		$config_info{mts}[0] = $curr_array[1];
+		$config_info{mts}[1] = $curr_array[2];
+		$config_info{mts}[2] = $curr_array[3];
+	    } 
+	    #else {
+	    #
+	    #} 
+
+	}
+
+    }
+
+    #
+    # initialize everything to $cNO_STATUS;
+    #
+    foreach $key (keys %config_info) {
+	foreach $statKey (keys %db_info) {
+	    $stats{$key}{$statKey} = $cNO_STATUS;
+	}
+    }
+
+    close (FILE);
+}
+
+#---------------------------------------------------------------
+#
+#
+#
+#---------------------------------------------------------------
+sub showInfoPage ($$$$) {
+    my ($inTableRef, $inType, $inTNS, $inTitle) = @_;
+
+    #
+    # top of page
+    #
+    $filename = "$cKARMA_DOC_ROOT/info/$inTNS.$files{info}{$inType}";
+#print ("Trying to open file: $filename\n");
+    open (INFO_PAGE, ">$filename");
+
+
+    showInfoHead ($inTNS, $inType);
+
+    my $i = 0;
+    my $j = 0;
+
+    if (defined ($inTableRef)) {
+    #
+    # content of page (table data)
+    #
+#    print INFO_PAGE ("<TABLE>");
+	print INFO_PAGE ("<table width=\"100%\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\">\n");
+	
+	
+	if (defined ($inTableRef->[0][0])) {
+#	print INFO_PAGE ("<TR>\n");
+	    print INFO_PAGE ("<tr bgcolor=\"$cMAIN_TABLE_BG\" align=\"left\" valign=\"middle\">\n");
+	    
+	    $i = 0;
+	    #
+	    # title row
+	    #
+	    while (defined ($inTableRef->[0][$i])) {
+		print INFO_PAGE ("<TD <font face=\"Arial, helvetica, sans-serif\" color=\"$cKARMA_TEXT_COLOR\">$inTableRef->[0][$i]</font></TD>\n");
+		$i++;
+	    }
+	    print INFO_PAGE ("</TR>\n");
+	    $j = 1;
+	    
+	    while (defined ($inTableRef->[$j][0])) {
+
+		print INFO_PAGE ("<TR align=\"left\" valign=\"middle\">\n");
+		$i = 0;
+#	    while ($inTableRef[$j][$i]) {
+		while (defined ($inTableRef->[$j][$i])) {
+		    if ($i == 0) {
+			if ($inTableRef->[$j][$i] == $cWARNING_STATUS) {
+			    print INFO_PAGE ("<TD><IMG SRC=\"../images/yellow_status\"></TD>\n"); 
+			} elsif ($inTableRef->[$j][$i] == $cALERT_STATUS) {
+			    print INFO_PAGE ("<TD height=\"30\"><IMG SRC=\"../images/red_status\"></TD>\n"); 
+			} elsif ($inTableRef->[$j][$i] == $cOK_STATUS) {
+			    print INFO_PAGE ("<TD><IMG SRC=\"../images/green_status\" ></TD>\n");  
+			} else {
+			    print INFO_PAGE ("<TD><IMG SRC=\"../images/purple_status\"></TD>\n");  
+			}
+		    } else {
+			print INFO_PAGE ("<TD height=\"25\">\n");
+			print INFO_PAGE ("<font face=\"Arial, Helvetica, sans-serif\" color=\"$cKARMA_TEXT_COLOR\">\n");
+			print INFO_PAGE ("$inTableRef->[$j][$i]\n");
+			print INFO_PAGE ("</font>\n");
+			print INFO_PAGE ("</TD>\n");
+		    }
+		    $i++;
+		}
+		print INFO_PAGE ("</TR>\n");
+		
+		$j++;
+		
+	    }      
+	}
+	
+	print INFO_PAGE ("</TABLE>");
+	
+	if ($j == 1) {
+	    print INFO_PAGE ("No Data Found.\n");
+	}
+    } else {
+	print INFO_PAGE ("<font color=\"$cEMPHASIS_TEXT\" size=\"5\" face=\"Arial, Helvetica, sans-serif\">Database DOWN!</font>\n");
+    }
+
+    
+    showInfoFoot ($inType, $inTNS);
+
+
+    close (INFO_PAGE);
+
+}
+
+#-----------------------------------------------------------------------
+#
+# returns the time of day in minutes
+#
+#-----------------------------------------------------------------------
+sub getDayMinutes ($) {
+    ($inTime) = @_;
+
+
+    my $sec =  $min = $hour = $mday = $mon = 
+       $year = $wday = $yday = $isdst = 0;
+    my $dayMinutes = 0;
+
+    #
+    # gmtime is 4 hours forward... didn't know the correct way to handle
+    # this...
+    #
+    $inTime -= (4 * 60 * 60);
+    
+    ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = gmtime ($inTime);
+
+    $dayMinutes = $hour * 60 + $min;
+
+    return $dayMinutes;
+}
+
+
+#-----------------------------------------------------------------------
+#
+# prints the header of the "main" page
+#
+#-----------------------------------------------------------------------
+sub showKarmaHeadMain () {
+
+    print INDFILE ("<html>\n");
+    print INDFILE ("<head>\n");
+    print INDFILE ("<title>main</title>\n");
+    print INDFILE ("<meta http-equiv=\"Content-Type\" content=\"text/html; charset=iso-8859-1\">\n");
+    print INDFILE ("</head>\n\n");
+
+    print INDFILE ("<body bgcolor=\"$cINFO_BG_COLOR\" link=\"$cKARMA_LINK_COLOR\" vlink=\"$cKARMA_LINK_COLOR\" alink=\"$cKARMA_LINK_COLOR\">\n");
+
+    print INDFILE ("<table width=\"100\%\" border=\"0\" height=\"67\%\" cellpadding=\"10\" cellspacing=\"0\" bordercolordark=\"$cBORD_COL_DARK\" bordercolor=\"$cBORDER_COLOR\" >\n");
+
+
+
+    print INDFILE ("<tr bgcolor=\"$cHEAD_BG_COLOR\">\n"); 
+
+    print INDFILE ("<th align=\"left\" height=\"75\" ><img src=\"images/logo.jpg\" ></th>\n");
+    print INDFILE ("<th width=\"61\%\" height=\"50\"><font color=\"#FF9933\" face=\"Arial, Helvetica, sans-serif\" size=\"6\">Oracle Monitor</font></th>\n");
+    print INDFILE ("<th width=\"11\%\" height=\"50\" align=right><img src=\"images/sm_logo.jpg\"></th>\n");
+
+    print INDFILE ("</tr>\n");
+
+#    print INDFILE ("<tr bgcolor=\"$cBODY_BG_COLOR\" valign=\"middle\" align=\"center\">\n"); 
+    print INDFILE ("<tr bgcolor=\"$cINFO_BG_COLOR\" valign=\"middle\" align=\"center\">\n"); 
+    print INDFILE ("<td colspan=\"3\" height=\"250\">\n"); 
+
+}
+
+#-----------------------------------------------------------------------
+#
+# prints the footer of the main page
+#
+#-----------------------------------------------------------------------
+sub showKarmaFootMain () {
+
+#    print INDFILE ("</TABLE>\n");
+#    print INDFILE ("</CENTER>\n");
+#    print INDFILE ("</TABLE>\n");
+#    print INDFILE ("</BODY></HTML>\n");
+
+
+    print INDFILE ("</td>\n");
+    print INDFILE ("</tr>\n");
+    print INDFILE ("<tr bgcolor=\"$cINFO_BG_COLOR\">\n"); 
+    print INDFILE ("<td colspan=\"2\" height=\"2\" bgcolor=\"$cHEAD_BG_COLOR\" colspan=\"2\"><font color=\"$cTEXT_COLOR\" face=\"Arial, Helvetica, sans-serif\" size=\"5\">Last \n");
+    print INDFILE ("updated <font color=\"$cEMPHASIS_TEXT\">$currTime</font></font></td>\n");
+
+    print INDFILE ("<td bgcolor=\"$cHEAD_BG_COLOR\" cellpadding=\"0\" cellspacing=\"0\" align=\"right\"><a href=\"help.html\"><img border=0 src=\"images/help.jpg\"></a></td>\n");
+
+    print INDFILE ("</tr>\n");
+    print INDFILE ("</table>\n");
+    print INDFILE ("</body>\n");
+    print INDFILE ("</html>\n");
+
+}
+
+
+
+#    print INDFILE ("<HTML>\n");
+#    print INDFILE ("<HEAD>\n");
+#    print INDFILE ("<TITLE> Oracle Monitor</TITLE>\n");
+#    print INDFILE ("<META HTTP-EQUIV=\"REFRESH\" CONTENT=\"$config_info{up}[1]\">\n");
+#    print INDFILE ("</HEAD>\n");
+#    print INDFILE ("<BODY BACKGROUND=\"images/mon_bkgd\" TEXT=$cTEXT_COLOR LINK=$cLINK_COLOR VLINK=$cVLINK_COLOR\">\n");
+    
+#    print INDFILE ("<CENTER>\n");
+
+#    print INDFILE ("<TABLE><TR><TD>\n");
+#    print INDFILE ("<TABLE CELLPADDING=5>\n");
+#    print INDFILE ("<TR><TD>\n");
+#    print INDFILE ("</TR></TD>\n");
+#    print INDFILE ("<TR><TD>\n");
+#    print INDFILE ("</TR></TD>\n");
+#    print INDFILE ("<TR><TD>\n");
+#    print INDFILE ("<B><I>\n");
+#    print INDFILE ("<IMG SRC=\"images/green_status\" ALT=\"green\" height=$cSTATUS_HEIGHT width=$cSTATUS_WIDTH ></TD><TD>System OK</TD>\n");
+#    print INDFILE ("</TD></TR>\n");
+#    print INDFILE ("<TR><TD>\n");
+#    print INDFILE ("<IMG SRC=\"images/yellow_status\" ALT=\"yellow\" height=$cSTATUS_HEIGHT width=$cSTATUS_WIDTH></TD><TD>Attention</TD>\n");
+#    print INDFILE ("</TD></TR>\n");
+#    print INDFILE ("<TR><TD>\n");
+#    print INDFILE ("<IMG SRC=\"images/red_status\" ALT=\"red\" height=$cSTATUS_HEIGHT width=$cSTATUS_WIDTH ></TD><TD>Trouble\n");
+#    print INDFILE ("</TD></TR>\n");
+#    print INDFILE ("<TR><TD>\n");
+#    print INDFILE ("<IMG SRC=\"images/purple_status\" ALT=\"purple\" height=$cSTATUS_HEIGHT width=$cSTATUS_WIDTH ></TD><TD>No report\n");
+#    print INDFILE ("</TD></TR>\n");
+#    print INDFILE ("<TR><TD\n");
+#    print INDFILE ("</TD></TR>\n");
+#    print INDFILE ("<TR><TD colspan=\"2\">\n");
+#    print INDFILE ("</I></B>\n");
+#    print INDFILE ("<H3><I>Updated \@ $currTime </I></H3>\n");
+#    print INDFILE ("</TD></TR>\n");
+#    print INDFILE ("<TR><TD>\n");
+#    print INDFILE ("</TR></TD>\n");
+#    print INDFILE ("<TR><TD>\n");
+#    print INDFILE ("</TR></TD>\n");
+#    print INDFILE ("</TABLE>\n");
+#    print INDFILE ("</TD>\n");
+
+#    print INDFILE ("<TD>\n");
+#    print INDFILE ("<TABLE CELLPADDING=5>\n");
+#    print INDFILE ("<TR><TD VALIGN=TOP colspan=\"2\">\n");
+#    print INDFILE ("<CENTER><B><font size=\"32\" face=\"Arial, helvetica\"><A HREF=\"about.html\">Karma</A></font></B>\n");
+#    print INDFILE ("</TD></TR>\n");
+#    print INDFILE ("<TR><TD VALIGN=TOP colspan=\"2\">\n");
+#    print INDFILE ("<H3>Web-based Oracle Database Monitor</H3></CENTER>\n");
+#    print INDFILE ("</TD></TR>\n");
+#    print INDFILE ("<TR><TD VALIGN=TOP>\n");
+#    print INDFILE ("<TR bgcolor=\"$cHD_BG_COLOR\">\n");
+#    print INDFILE ("<font size=\"2\" face=\"Arial, helvetica\">\n");
+#    print INDFILE ("<TD><CENTER><A HREF=\"help.html\">Help</A></CENTER></TD>\n");
+#    print INDFILE ("<TD><CENTER><A HREF=\"links.html\">Links</A></CENTER></TD>\n");
+#    print INDFILE ("</font>\n");
+#    print INDFILE ("</TR>\n");
+#    print INDFILE ("</TABLE>\n");
+#    print INDFILE ("</TD></TR>\n");
+
+#    print INDFILE ("<TR><TD colspan=\"2\">\n");
+
+
+
+#-----------------------------------------------------------------------
+#
+# prints the footer of an info page
+#
+#-----------------------------------------------------------------------
+sub showInfoFoot ($$) {
+    ($inType, $inTNS) = @_;
+
+#    print INFO_PAGE ("<BR><A HREF=\"../help/$files{help}{$inType}\"><IMG SRC=\"../images/question_symbol\"></A>\n");
+
+    #
+    # bottom of the page
+    #
+#    print INFO_PAGE ("</BODY>\n");
+#    print INFO_PAGE ("</HTML>\n");
+
+
+    print INFO_PAGE ("</td>\n");
+    print INFO_PAGE ("</tr>\n");
+    print INFO_PAGE ("<tr bgcolor=\"$cINFO_BG_COLOR\"> \n");
+    print INFO_PAGE ("<td height=\"$cHEAD_HEIGHT\" bgcolor=\"$cHEAD_BG_COLOR\"\n");
+    print INFO_PAGE ("width=\"178\%\" colspan=\"2\">\n");
+    print INFO_PAGE ("<font color=\"$cTEXT_COLOR\" face=\"Arial, Helvetica, sans-serif\" size=\"5\">Info for\n");
+    print INFO_PAGE ("<font color=\"$cEMPHASIS_TEXT\">\n");
+    print INFO_PAGE ("$inTNS\n");
+    print INFO_PAGE ("</font> Database last updated <font color=\"$cEMPHASIS_TEXT\">\n");
+    print INFO_PAGE ("$currTime</font></font></td>\n");
+    print INFO_PAGE ("<td height=\"$cHEAD_HEIGHT\" bgcolor=\"$cHEAD_BG_COLOR\" width=\"$cHEAD_HEIGHT\">\n");
+#    print INFO_PAGE ("<a href=\"generic_help.html\" target=\"_self\">\n");
+    print INFO_PAGE ("<a href=\"../help/$files{help}{$inType}\" target=\"_self\">\n");
+    print INFO_PAGE ("<img src=\"../images/help.jpg\" width=\"$cHEAD_HEIGHT\" height=\"59\" align=\"right\" border=\"0\"></a></td>\n");
+    print INFO_PAGE ("</tr>\n");
+    print INFO_PAGE ("</table>\n");
+    print INFO_PAGE ("</body>\n");
+    print INFO_PAGE ("</html>\n");
+
+
+}
+
+#-----------------------------------------------------------------------
+#
+# prints the header of an info page
+#
+#-----------------------------------------------------------------------
+sub showInfoHead ($$) {
+    ($inTNS, $inType) = @_;
+
+
+    #
+    # old header stuff
+    #
+#    print INFO_PAGE ("<HTML>\n");
+#    print INFO_PAGE ("<HEAD>");
+#    print INFO_PAGE ("<TITLE>Karma: $inTNS - more info</TITLE>\n");
+
+#    print INFO_PAGE ("<BODY BACKGROUND=\"../images/info_bkgd\" TEXT=$cTEXT_COLOR LINK=$cLINK_COLOR VLINK=$cVLINK_COLOR>\n");
+#    print INFO_PAGE ("<H1>$inTitle for $inTNS database - last updated at $currTime</H1><BR>\n");
+
+
+
+
+    print INFO_PAGE ("<html>\n");
+    print INFO_PAGE ("<head>\n");
+    print INFO_PAGE ("<title>$inTNS - $names{long}{$inType} Info</title>\n");
+    print INFO_PAGE ("<meta http-equiv=\"Content-Type\" content=\"text/html; charset=iso-8859-1\">\n");
+    print INFO_PAGE ("</head>\n");
+    
+    print INFO_PAGE ("<body bgcolor=\"$cINFO_BG_COLOR\">\n");
+    
+    print INFO_PAGE ("<table width=\"100\%\" border=\"0\" height=\"300\" cellpadding=\"5\" cellspacing=\"0\" bordercolordark=\"$cBORD_COL_DARK\" bordercolor=\"$cBORDER_COLOR\" >\n");
+
+
+
+    print INFO_PAGE ("<tr bgcolor=\"$cHEAD_BG_COLOR\">\n"); 
+    print INFO_PAGE ("<th align=\"left\" height=\"$cHEAD_HEIGHT\"><font color=\"$cTEXT_COLOR\" face=\"Arial, Helvetica, sans-serif\" size=\"7\"><img src=\"../images/logo.jpg\" width=\"144\" height=\"36\">\n"); 
+    
+    print INFO_PAGE ("</font></th>\n");
+    print INFO_PAGE ("<th height=\"$cHEAD_HEIGHT\"><font color=\"$cTEXT_COLOR\" face=\"Arial, Helvetica, sans-serif\" size=\"6\">\n");
+    print INFO_PAGE ("$names{long}{$inType} Info\n");
+    print INFO_PAGE ("</font></th>\n");
+    print INFO_PAGE ("<th height=\"$cHEAD_HEIGHT\"><img src=\"../images/info.jpg\"\n");
+    print INFO_PAGE ("width=\"$cHEAD_HEIGHT\" height=\"$cHEAD_HEIGHT\" align=\"right\"></th>\n");
+    print INFO_PAGE ("</tr>\n");
+    
+#    print INFO_PAGE ("<tr bgcolor=\"$cBODY_BG_COLOR\">\n"); 
+    print INFO_PAGE ("<tr bgcolor=\"$cINFO_BG_COLOR\">\n"); 
+
+    print INFO_PAGE ("<td colspan=\"3\" height=\"150\" width=\"0\">\n"); 
+
+}

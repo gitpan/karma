@@ -1,0 +1,54 @@
+
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <title>Fragmentation Help</title>
+</head>
+
+<body bgcolor="#003399" link="#996633" vlink="#996633" alink="#ff9933">
+
+&nbsp;
+<table BORDER=0 CELLSPACING=0 CELLPADDING=5 WIDTH="100%" HEIGHT="350" bordercolordark="#003333" bordercolor="#00CCCC" >
+<tr BGCOLOR="#000066">
+<th HEIGHT="50"><img SRC="../images/logo.jpg" height=36 width=144></th>
+
+<th HEIGHT="50"><font face="Arial, Helvetica, sans-serif"><font color="#FF9933"><font size=+3>OS Statistics 
+Help</font></font></font></th>
+
+<th HEIGHT="50"><img SRC="../images/help.jpg" height=59 width=54></th>
+</tr>
+
+<tr VALIGN=TOP BGCOLOR="#003399">
+<td COLSPAN="3" HEIGHT="300"><font face="Arial, Helvetica, sans-serif"><font size="3">
+
+Karma provides limited ability to monitor operating system level
+statistics similar to the way it allows monitoring of the alert.log.
+The karmaOSd script also checks via "uptime" the load average
+and percent idle.  As with the alert.log info, this data populates
+a table which karma then monitors for changes.  Checkout the
+karmagentd for more information on configuring that end of things.
+
+<p><font face="Arial, Helvetica, sans-serif"><font size="3">
+
+Beyond that, configure os monitoring like you would any
+other facility in Karma.  Here's an example:
+
+</font></font><i><font color="#009900"></font></i>
+<p><i><font face="Arial, Helvetica, sans-serif"><font color="#330033"><font size=+1>
+os:1:5:10
+</font></font></font></i><font color="#330033"></font>
+<p><font face="Arial, Helvetica, sans-serif"><font size="3">
+
+In this example we're checking every minute.  This is not a cpu
+or database intensive task, so checking every minute should be 
+fine.  We're flagging a WARNING if the load average goes above 5
+and an ALERT if it goes above 10.  This will need to be
+configured more liberally for a machine with more processors.
+
+</font></font></font>
+<p>&nbsp;</td>
+</tr>
+</table>
+
+</body>
+</html>

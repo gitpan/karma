@@ -1,0 +1,16 @@
+
+Quickstart Guide:
+-----------------
+
+1. Edit the doc_root/karma.conf file
+2. Make sure your database is running, and issue this command:
+
+   $ perl karmad &
+
+3. Open the file doc_root/index.html with a browser (you don't
+   necessarily need a webserver at all).
+
+---
+If it isn't obvious already, you have to have Oracle, DBI, and DBD-Oracle
+installed for everything to work.
+

@@ -1,0 +1,76 @@
+
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <title>Fragmentation Help</title>
+</head>
+
+<body bgcolor="#003399" link="#996633" vlink="#996633" alink="#ff9933">
+
+&nbsp;
+<table BORDER=0 CELLSPACING=0 CELLPADDING=5 WIDTH="100%" HEIGHT="350" bordercolordark="#003333" bordercolor="#00CCCC" >
+<tr BGCOLOR="#000066">
+<th HEIGHT="50"><img SRC="../images/logo.jpg" height=36 width=144></th>
+
+<th HEIGHT="50"><font face="Arial, Helvetica, sans-serif"><font color="#FF9933"><font size=+3>Slow SQL Help</font></font></font></th>
+
+<th HEIGHT="50"><img SRC="../images/help.jpg" height=59 width=54></th>
+</tr>
+
+<tr VALIGN=TOP BGCOLOR="#003399">
+<td COLSPAN="3" HEIGHT="300"><font face="Arial, Helvetica, sans-serif"><font size="3">
+
+Slow SQL queries can be one of the most frustrating and 
+performance degrading aspects of database administration.  What
+makes it particularly frustrating is if you have developers
+on your production box.  :-)  
+
+<p><font face="Arial, Helvetica, sans-serif"><font size="3">
+
+Bad queries manage to find their way into every database.  Karma
+provides a method to be a little more proactive about monitoring
+this activity, and letting you know hopefully before they
+become a problem.  Karma, though, can only help identify those
+queries that are problems, it can't optimize them.  
+
+<p><font face="Arial, Helvetica, sans-serif"><font size="3">
+
+Optimizing queries can mean anything from analyzing related tables
+and indexes in a schema, providing hints to suggest a better
+execution plan, creating indexes to provide Oracle with a faster
+way to the data, or actually rearranging the query so that 
+perhaps it enables an index that it previously disabled.  
+For more information on all aspects of SQL query tuning
+see <A HREF="http://www.amazon.com/exec/obidos/ASIN/0136142311/o/qid=935998933/sr=8-1/002-5520935-5714251">Guy Harrison's book "Oracle SQL High Performance
+Tuning"</A> - ISBN 0136142311.
+
+<p><font face="Arial, Helvetica, sans-serif"><font size="3">
+
+Here's a configuration example:
+
+</font></font></font><i><font color="#009900"></font></i>
+<p><i><font face="Arial, Helvetica, sans-serif"><font color="#330033"><font size=+1>
+slowsql:15:100:200
+</font></font></font></i><font color="#330033"></font>
+<p><font face="Arial, Helvetica, sans-serif"><font size="3">
+
+In this example we're monitoring every 15 minutes.  We're deciding
+that queries that do more than 100 data block I/Os flags a 
+WARNING, and 200 I/Os flags an ALERT.  Adjust this to suit the
+needs of your particular database, and the speed of your disks.
+On an RAID array for example, you might be able to multiply
+these numbers by 5 and still see good performance.  
+
+<p><font face="Arial, Helvetica, sans-serif"><font size="3">
+
+Please test this before running it on your production database
+and limit how often you run it, as it can be a "slow sql" query.
+
+
+</font></font>
+<p>&nbsp;</td>
+</tr>
+</table>
+
+</body>
+</html>

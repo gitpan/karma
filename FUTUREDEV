@@ -1,0 +1,32 @@
+
+Future Development
+------------------
+
+There are already plans to expand on the functionality
+present in Karma.  Here's a list of some of the things I'm
+working on for a future release.
+
+--
+
+o lynx browser support (no frames, no tables?)
+o shorter ttl HTML tags so you don't have to click shift reload
+o use file package instead of open
+o standard perl install
+o better perl docs (POD)
+o configuration check tool (reads karma.conf file)
+o pager/email alert support
+o karmactl utility for 
+  - starting karmad
+  - stopping karmad
+  - rereading the config file of karma
+  - checking the status of a running karmad daemon
+o web interface
+  - using karmactl
+  - editing karma.conf
+o more services monitored
+  - replication support
+  - listener log monitor
+  - trace/core file monitor
+o karma.conf
+  - specify frames/no frames/no tables support 
+  - configure blinking/noblinking icons

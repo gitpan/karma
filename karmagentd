@@ -1,0 +1,490 @@
+#!/usr/local/bin/perl
+#------------------------------------------------------------------
+# 
+# Karma Copyright (C) 1999  Sean Hull <shull@pobox.com>
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+#
+#
+#------------------------------------------------------------------
+#
+# karmagentd
+#
+# This script runs on the server machine (of each database you're
+# monitoring, to get status of the OS (load average, % idle)
+# and populate karma_os_stats with this information.  It also
+# gathers information about any new ORA- errors in the alert.log
+# and populates the karma_alertlog_errors table with it.
+#
+# Notes:  You don't HAVE to use this daemon at all.  If you don't,
+# the OS and alert log columns will not be displayed in karma.
+#
+# You need to run one of these daemons for each instance which you
+# want to gather these stats on (for now).  Sorry.
+#
+# Needs to run as the Oracle user...
+#-----------------------------------------------------------------
+
+#----------------------------------------------
+# TO DO
+#
+# o prompt for password
+# o monitor other files besides alert.log?
+# o check input, environment variables etc
+#
+#----------------------------------------------
+
+$VERSION = "0.5.0";
+
+#----------------------------------------------
+# 
+# PROTOTYPES
+#
+#----------------------------------------------
+sub checkLine ($);
+sub readPosition ($);
+sub writePosition ($$);
+sub debugPrint ($$);
+sub printHelp ();
+
+use Getopt::Std;
+use DBI;
+require 5.004;
+
+
+#
+# get the command line options
+#
+$opt_h = undef;
+$opt_t = undef;
+$opt_u = undef;
+$opt_f = undef;
+$opt_r = undef;
+$opt_j = undef;
+$opt_p = undef;
+$opt_k = undef;
+$opt_s = undef;
+$opt_b = undef;
+$opt_h = undef;
+$opt_d = undef;
+$opt_w = undef;
+$opt_v = undef;
+getopts('ht:u:f:a:rp:j:s:b:h:d:k:vw');
+
+if ($opt_v) {
+    print_version ();
+}
+if ($opt_w) {
+    print_warranty ();
+}
+if ($opt_h) {
+    printHelp ();
+}
+
+my $DEBUG_LEVEL = 0;
+if ($opt_d) {
+    $DEBUG_LEVEL = $opt_d;
+}
+
+if ($opt_s) {
+    $ENV{ORACLE_SID} = $opt_s;
+}
+if ($opt_b) {
+    $ENV{ORACLE_BASE} = $opt_b;
+}
+if ($opt_h) {
+    $ENV{ORACLE_HOME} = $opt_h;
+}
+
+my $TNS = "";
+if ($opt_t) {
+    $TNS = $opt_t;
+} elsif (defined ($ENV{DBI_DSN})) {
+    $TNS = $ENV{DBI_DSN};
+}
+#
+# default to the OFA location
+#
+my $ALERTLOG_FILE = "$ENV{ORACLE_BASE}/admin/$ENV{ORACLE_SID}/bdump/alert_$ENV{ORACLE_SID}.log";
+if ($opt_a) {
+    $ALERTLOG_FILE = $opt_a;
+}
+my $PASS = "manager";
+if ($opt_p) {
+    $PASS = $opt_p;
+} elsif (defined ($ENV{DBI_PASS})) {
+    $PASS = $ENV{DBI_PASS};
+} else {
+    print ("Password: ");
+    $PASS = <STDIN>;
+    chomp ($PASS);
+}
+
+my $USER = "karma";
+if ($opt_u) {
+    $USER = $opt_u;
+} elsif (defined ($ENV{DBI_USER})) {
+    $USER = $ENV{DBI_USER};
+}
+my $FREQUENCY = 60;
+if ($opt_f) {
+    $FREQUENCY = $opt_f * 60;
+}
+my $POSITION_FILE = "karmagent.sav";
+if ($opt_k) {
+    $POSITION_FILE = $opt_k;
+}
+
+my $cALERT_POSITION = "alert_position";
+my $cBEGINNING_OF_FILE = 0;
+
+my @uptimes = ();
+my $UPCMD = "uptime";
+my $uptimeString = "";
+
+print ("\nStarting karma monitoring daemon...\n");
+debug_print ("DEBUG_LEVEL:$DEBUG_LEVEL\n");
+debug_print ("-- Environment Settings --\n");
+debug_print ("ORACLE_BASE:$ENV{ORACLE_BASE}\n");
+debug_print ("ORACLE_HOME:$ENV{ORACLE_HOME}\n");
+debug_print ("ORACLE_SID:$ENV{ORACLE_SID}\n");
+
+
+#
+# database handle
+#
+debug_print ("Connecting - TNS:$TNS USER:$USER PASS:$PASS\n", 2);
+$dbh = DBI->connect ("DBI:Oracle:$TNS", $USER, $PASS);
+
+if ($dbh) {
+    print ("Successfully connected to $USER\@$TNS...\n");
+} else {
+    print ("Failed to connect to $USER\@$TNS - Exiting.\n");
+}
+
+# 
+# statements for inserting data into the db
+#
+my $uptimeStatement =
+    "INSERT INTO karma_os_stats VALUES (sysdate, ?, ?, ?, 0)";
+my $alertlogStatement =
+    "INSERT INTO karma_alertlog_errors VALUES (sysdate, ?, ?, ?)";
+
+#
+# prepare the statements
+#
+my $uptimeSth = $dbh->prepare ($uptimeStatement);
+my $alertlogSth = $dbh->prepare ($alertlogStatement);
+
+my $prevTime = getDayMinutes (time ());
+my $currTime = 0;
+
+my $currPosition = 0;
+if ($opt_j) {
+    $currPosition = $opt_j;
+} else {
+    readPosition ($POSITION_FILE);
+}
+
+debug_print ("Reading alertlog: $ALERTLOG_FILE\n");
+debug_print ("Start reading at byte $currPosition\n");
+if (not (open (ALERT_FILE, "<$ALERTLOG_FILE"))) {
+    print ("Could not open alertlog file.  Exiting.\n");
+    exit;
+}
+seek (ALERT_FILE, $currPosition, $cBEGINNING_OF_FILE);
+
+while (1) {
+#    if (($currTime >= $prevTime + $FREQUENCY) || ($currTime == 0)) {
+
+	$prevTime = $currTime;
+
+	# 
+	# fetch the most current uptime stats
+	#
+	$uptimeString = `/usr/bin/uptime`;
+	chop ($uptimeString);
+	$uptimeString =~ s/^.*://;
+	@uptimes = split (',', $uptimeString);
+	debug_print ("INSERTING OS VALUES: $uptimes[0], $uptimes[1], $uptimes[2]\n", 2);
+	$uptimeSth->execute ($uptimes[0], $uptimes[1], $uptimes[2]);
+
+	#
+	# fetch any new alert log errors
+	#
+	while (<ALERT_FILE>) {
+	    
+	    $currLine = $_;
+	    chomp ($currLine);
+	    $lineNum++;	
+	    if ($lineNum % 50) {
+		debug_print ("LINE:$lineNum\n", 2);
+	    }
+	    $currPosition = tell;
+
+	    debug_print ("TESTING - $currLine\n", 2);
+	    $lineRef = checkLine ($currLine);
+	    
+	    if ($lineRef->[0]) {
+		debug_print ("INSERTING ALERTLOG VALS: $lineRef->[0], $lineRef->[1], $lineRef->[2]\n", 2);
+		$alertlogSth->execute ($lineRef->[0],
+				       $lineRef->[1],
+				       $lineRef->[2]);
+
+	    }
+	    
+	}
+
+	writePosition ($POSITION_FILE, $currPosition);
+
+	debug_print ("Sleeping for $FREQUENCY seconds...\n");
+	sleep ($FREQUENCY);
+
+    $currTime = getDayMinutes (time ());
+}
+
+close (AFILE);
+#
+# cleanup and exit
+#
+if ($uptimeSth) {
+    $uptimeSth->finish;
+}
+if ($alertlogSth) {
+    $alertlogSth->finish;
+}
+if ($dbh) {
+    $dbh->disconnect;
+}
+exit 1;
+
+
+
+#-----------------------------------------------------------------------
+#
+# returns the time of day in minutes
+#
+#-----------------------------------------------------------------------
+sub getDayMinutes ($) {
+    ($inTime) = @_;
+
+
+    my $sec =  $min = $hour = $mday = $mon = 
+       $year = $wday = $yday = $isdst = 0;
+    my $dayMinutes = 0;
+
+    #
+    # gmtime is 4 hours forward... didn't know the correct way to handle
+    # this...
+    #
+    $inTime -= (4 * 60 * 60);
+    
+    ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = gmtime ($inTime);
+
+    $dayMinutes = $hour * 60 + $min;
+
+    return $dayMinutes;
+}
+
+#-----------------------------------------------------------------------
+#
+# returns the time of day in minutes
+#
+#-----------------------------------------------------------------------
+sub printHelp () {
+
+    print ("\n");
+    print (" h - print this help info\n");
+    print (" f - fequency in minutes to wakeup & check things (default 1)\n");
+    print (" r - reset the alert.log, and truncate it's table\n");
+    print (" u - user to login as (default karma)\n");
+    print (" p - oracle login password (otherwise you're prompted)\n");
+    print (" j - jump j bytes in file (takes precedence over save file)\n");
+    print (" t - tnsname of the database to watch (default local)\n");
+    print (" a - specify alert.log file (default OFA)\n");
+    print (" k - use this file to store seek position\n");
+    print (" b - specify ORACLE_BASE (takes precedence over env)\n");
+    print (" h - specify ORACLE_HOME (takes precedence over env)\n");
+    print (" s - specify ORACLE_SID (takes precedence over env\n");
+    print (" d - debug level (default 0, no debugging)\n");
+    print (" w - print the warranty and exit\n");
+    print ("\n");
+    print ("$0 [-h] [-f \#] [-r] [-u karma] [-p pass] [-j \#] [-t DB]\n");
+    print ("\t[-a alert.log] [-k karmagent.sav] [-b ORACLE_BASE]\n"); 
+    print ("\t[-h ORACLE_HOME] [-s ORACLE_SID] [-d \#]\n");
+    
+    exit;
+
+}
+
+
+#--------------------------------------------------------------
+#
+# checkLine
+#
+#--------------------------------------------------------------
+sub checkLine ($) {
+    my ($inLine) = @_;
+
+    my $facility = "";
+    my $errNum = 0;
+    my $errText = "";
+
+    if ($inLine =~ /^ORA-/) {
+
+	debug_print ("ERRORS --- $inLine\n");
+	$facility = "ORA";
+	$errNum = $inLine;
+	$errNum =~ s/^ORA-//;
+	$errNum =~ s/\s.*$//;
+	$errText = $inLine;
+	$errText =~ s/^ORA-//;
+	$errText =~ s/^\d*\s//;
+	$noErrors = 0;
+
+	return [$facility, $errNum, $errText];
+    }
+    
+    return [];
+}
+
+#--------------------------------------------------------------
+#
+#
+#
+#--------------------------------------------------------------
+sub readPosition ($) {
+    my ($inFile) = @_;
+
+    my $currLine = "";
+    my $retPos = 1;
+
+    if (-e $inFile) {
+	open (PFILE, "<$inFile");
+
+	while (<PFILE>) {
+	    $currLine = $_;
+	    chomp $currLine;
+	    if ($currLine =~ /$cALERT_POSITION/) {
+		$currLine =~ s/^.*$cALERT_POSITION://;
+		$currLine =~ s/\D*//;
+		$retPos = $currLine;
+	    }
+	}
+
+	close (PFILE);
+    } else {
+	debug_print ("Cannot read position file - $inFile, starting at zero bytes\n");
+    }
+    
+    return $retPos;
+}
+
+#--------------------------------------------------------------
+#
+#
+#
+#--------------------------------------------------------------
+sub writePosition ($$) {
+    my ($inFile, $inPos) = @_;
+
+    if (-w $inFile) {
+	debug_print ("Writing position:$inPos\n", 2);
+	open (PFILE, ">$inFile");
+	print PFILE ("$cALERT_POSITION:$inPos\n");
+	close (PFILE);
+    } else {
+	print ("Cannot write to position file.  Position will not be saved.\n");
+    }
+}
+
+
+
+#--------------------------------------------------------------
+#
+#
+#
+#--------------------------------------------------------------
+sub debug_print ($$) {
+    my ($inMessage, $inLevel) = @_;
+
+    if (defined ($inLevel)) {
+	if ($DEBUG_LEVEL >= $inLevel) {
+	    print $inMessage;
+	}
+    } elsif ($DEBUG_LEVEL > 0) {
+	print ("$inMessage\n");
+    }
+}
+
+#-----------------------------------------------------------------------
+#
+# print version and exit
+#
+#-----------------------------------------------------------------------
+sub print_version () {
+    print 
+	"\n",
+	"  Karma v$VERSION Copyright (C) 1999 Sean Hull <shull\@pobox.com>\n",
+	"  Karma comes comes with ABSOLUTELY NO WARRANTY; for details\n",
+	"  type \"karmagentd -w\".  This is free software, and you are\n",
+	"  welcome to redistribute it under certain conditions.\n";
+
+    exit ;
+}
+
+
+
+#-----------------------------------------------------------------------
+#
+# GNU General Public License Conditions
+#
+#-----------------------------------------------------------------------
+sub print_conditions () {
+
+    print ("\n");
+
+    exit;
+}
+
+#-----------------------------------------------------------------------
+#
+# GNU General Public License Warranty
+#
+#-----------------------------------------------------------------------
+sub print_warranty () {
+    print 
+	"\n",
+	"   Copyright (C) 1999  Sean Hull <shull\@pobox.com>\n",
+	"\n",
+	"   This program is free software; you can redistribute it and/or modify\n",
+	"   it under the terms of the GNU General Public License as published by\n",
+	"   the Free Software Foundation; either version 2 of the License, or\n",
+	"   (at your option) any later version.\n",
+	"\n",
+	"   This program is distributed in the hope that it will be useful,\n",
+	"   but WITHOUT ANY WARRANTY; without even the implied warranty of\n",
+	"   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n",
+	"   GNU General Public License for more details.\n",
+	"\n",
+	"   You should have received a copy of the GNU General Public License\n",
+	"   along with this program; if not, write to the Free Software\n",
+	"   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA\n",
+	"\n";
+
+
+   exit;
+}
+

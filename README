@@ -1,0 +1,27 @@
+
+Karma - Oracle monitoring software
+------------------------------------
+
+karmaclientd    - main karma utility.  Run this and you will generate 
+                  a set of html pages in the specified directory.  If
+
+karmaserverd    - not working yet.  This will populate tables in the
+                  db (KARMA_OS_STATS, and KARMA_ALERTLOG_ERRORS) on
+                  the server by reading the alertlog, and running various
+                  OS stats commands.
+
+doc_root/images - images needed by the html files
+
+doc_root/help   - directory containing static html help files
+
+doc_root/info   - directory which will contain more info files, giving
+                  information about the particular statistic, and it's
+                  status.
+
+sql/karma_user.sql - auxillary sql script for creating a special
+                     read-only "karma" user to run the tool as.  
+
+sql/karma_objs.sql - auxillary sql script for creating additional
+                     objects KARMA_ALERTLOG_ERRORS, and KARMA_OS_STATS
+                     for collecting info on the database server
+
