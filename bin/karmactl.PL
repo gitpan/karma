@@ -50,7 +50,7 @@ use Getopt::Std;
 use IO::File;
 use karma;
 
-$main::KARMA_HOME = ".";
+$main::KARMA_HOME = '.';
 if (defined $ENV{KARMA_HOME}) {
     $main::KARMA_HOME = $ENV{KARMA_HOME};
 }
@@ -58,7 +58,7 @@ if (defined $ENV{KARMA_HOME}) {
 #
 # look in the path if all else fails...
 #
-$main::KARMA = "karmad";
+$main::KARMA = 'karmad';
 #
 # look for karmad in the main::KARMA_HOME
 #
@@ -83,7 +83,7 @@ $main::KARMA_DOC="$main::KARMA_HOME$main::PATH_DELIM" . 'doc_root';
 #
 # needs windows support
 #
-$main::DEL_CMD = "/bin/rm";
+$main::DEL_CMD = '/bin/rm';
 
 
 #$main::opt_h = 0;
@@ -181,7 +181,7 @@ sub printHelp () {
 #-----------------------------------------------------------------------
 sub startKarma () {
 
-    print ("Starting karmad daemon");
+    print ('Starting karmad daemon');
  
     my $COMMAND = "$main::KARMA";
     if ($main::opt_l) {
@@ -265,7 +265,7 @@ sub refreshKarma () {
 #-----------------------------------------------------------------------
 sub statusKarma () {
 
-    my $line = "";
+    my $line = '';
     if ($main::KARMA_PID > 0) {
 #	print ("Getting status of karma daemon - pid:$main::KARMA_PID...\n");
 
@@ -275,7 +275,7 @@ sub statusKarma () {
 	open (FIFO, "<$main::KARMA_FIFO_NAME");
 	while ($line = <FIFO>) {
 	    
-	    print ("$line");
+	    print ($line);
 	}
 	close (FIFO);
     }    
@@ -291,7 +291,7 @@ sub statusKarma () {
 #-----------------------------------------------------------------------
 sub cleanupKarma () {
 
-    my $COMMAND = "";
+    my $COMMAND = '';
     if (-d $main::KARMA_DOC) {
 	if (-w $main::KARMA_DOC) {
 	    $COMMAND = "$main::DEL_CMD $main::KARMA_DOC$main::PATH_DELIM" . 'karma.html';

@@ -484,7 +484,7 @@ o fixed bug with min_wakeup time (refresh interval)
 
 =head1 Version 0.9.5
 
-=head2 1.3.99
+=head2 1.3.00
 
 =over 4
 
@@ -505,6 +505,26 @@ o karmagentd handles reset alertlog (reread from beginning)
 
 =item
 o slowsql defaults to OK status
+
+=back
+
+=head2 1.19.00
+
+=over 4
+
+=item
+o fixed problem where down DBs didn't respect unmonitored services
+
+=item
+o fixed misc "use of unitialized values" errors
+
+=item
+o karmagentd exits if can't find or open alert.log
+
+=item
+o cleaned up some "" where '' are better
+
+=back
 
 =cut
 

@@ -105,7 +105,7 @@ if ($main::opt_h) {
     printHelp ();
 }
 
-$main::DEBUG_LEVEL = undef;
+$main::DEBUG_LEVEL = 0;
 if ($main::opt_d) {
     $main::DEBUG_LEVEL = $main::opt_d;
 }
@@ -210,12 +210,12 @@ $main::cNO_STATUS = 2;
 $main::cWARNING_STATUS = 3;
 $main::cALERT_STATUS = 4;
 
-$main::cSHORT_EMAIL = "short";
-$main::cFULL_EMAIL = "full";
+$main::cSHORT_EMAIL = 'short';
+$main::cFULL_EMAIL = 'full';
 
-$main::cNOTIFY_ALRT="notify_alert";
-$main::cNOTIFY_WARN="notify_warning";
-$main::cNOTIFY_EMAIL="notify_email";
+$main::cNOTIFY_ALRT='notify_alert';
+$main::cNOTIFY_WARN='notify_warning';
+$main::cNOTIFY_EMAIL='notify_email';
 
 $main::cSTATUS_HEIGHT=25;
 $main::cSTATUS_WIDTH=35;
@@ -234,7 +234,7 @@ $main::cUPD_TIME = 1;
 $main::cFORCE_UPD = 1;
 $main::cNO_FORCE = 0;
 
-$main::cDEF_GRP_NAME = "default";
+$main::cDEF_GRP_NAME = 'default';
 
 #
 # for config_notify
@@ -260,19 +260,19 @@ $main::cNOTIFY_MSG = $main::cFULL_EMAIL;
 #
 # karma page colors
 #
-$main::cKARMA_TEXT_COLOR="#FF9966";
+$main::cKARMA_TEXT_COLOR='#FF9966';
 #$main::cKARMA_LINK_COLOR=$main::cKARMA_TEXT_COLOR;
-$main::cKARMA_LINK_COLOR="#CC6600";
-$main::cTEXT_COLOR="#FF9933";
-$main::cEMPHASIS_TEXT="#CC3300";
+$main::cKARMA_LINK_COLOR='#CC6600';
+$main::cTEXT_COLOR='#FF9933';
+$main::cEMPHASIS_TEXT='#CC3300';
 
 #$main::cBODY_BG_COLOR="#3366CC";
-$main::cINFO_BG_COLOR="#003399";
-$main::cHEAD_BG_COLOR="#000066";
-$main::cMAIN_TABLE_BG="#006666";
+$main::cINFO_BG_COLOR='#003399';
+$main::cHEAD_BG_COLOR='#000066';
+$main::cMAIN_TABLE_BG='#006666';
 
-$main::cBORDER_COLOR="#00CCCC";
-$main::cBORD_COL_DARK="#003333";
+$main::cBORDER_COLOR='#00CCCC';
+$main::cBORD_COL_DARK='#003333';
 
 #
 # misc page colors
@@ -560,7 +560,7 @@ ORDER BY start_time";
 @{$main::titles{extents}}    = ('Level', 'Name', 'Owner', 'Current', 'Max');
 @{$main::titles{latch}}      = ('Level', 'Name', 'Gets', 'Misses', 'Hitratio');
 @{$main::titles{fragmentation}} = ('Level', 'Type', 'Name', 'Initial',
-				"Next", "% Increase");
+				'Next', '% Increase');
 @{$main::titles{mts}}        = ('Level', 'Name', 'Busy', 'Idle', '% Busy');
 @{$main::titles{tablespace}} = ('Level', 'Name', 'Total (K)', 'Used (K)',
 				'% Used', 'Auto');
@@ -580,80 +580,80 @@ ORDER BY start_time";
 #
 $main::INDEX_FILE_NAME = "$main::KARMA_DOC_ROOT$main::PATH_DELIM" . 'karma.html';
 
-$main::files{info}{redolog}       = "redolog.html";
-$main::files{info}{rollback}      = "rollback.html";
-$main::files{info}{slowsql}       = "slowsql.html";
-$main::files{info}{alertlog}      = "alertlog.html";
-$main::files{info}{hitratios}     = "hitratios.html";
-$main::files{info}{extents}       = "extents.html";
-$main::files{info}{latch}         = "latch.html";
-$main::files{info}{fragmentation} = "fragmentation.html";
-$main::files{info}{mts}           = "mts.html";
-$main::files{info}{tablespace}    = "tablespace.html";
-$main::files{info}{os}            = "os.html";
-$main::files{info}{up}            = "up.html";
-$main::files{info}{db}            = "db.html";
-$main::files{info}{repqueue}      = "repqueue.html";
-$main::files{info}{reperror}      = "reperror.html";
+$main::files{info}{redolog}       = 'redolog.html';
+$main::files{info}{rollback}      = 'rollback.html';
+$main::files{info}{slowsql}       = 'slowsql.html';
+$main::files{info}{alertlog}      = 'alertlog.html';
+$main::files{info}{hitratios}     = 'hitratios.html';
+$main::files{info}{extents}       = 'extents.html';
+$main::files{info}{latch}         = 'latch.html';
+$main::files{info}{fragmentation} = 'fragmentation.html';
+$main::files{info}{mts}           = 'mts.html';
+$main::files{info}{tablespace}    = 'tablespace.html';
+$main::files{info}{os}            = 'os.html';
+$main::files{info}{up}            = 'up.html';
+$main::files{info}{db}            = 'db.html';
+$main::files{info}{repqueue}      = 'repqueue.html';
+$main::files{info}{reperror}      = 'reperror.html';
 
 #
 # help files
 #
-$main::files{help}{redolog}       = "services.html#Redologs";
+$main::files{help}{redolog}       = 'services.html#Redologs';
 $main::files{help}{rollback}      =
-    "services.html#Rollback_Segment_Contention";
-$main::files{help}{slowsql}       = "services.html#Slow_SQL";
-$main::files{help}{alertlog}      = "services.html#Alert_Log_Errors";
-$main::files{help}{hitratios}     = "services.html#Hit_Ratios";
-$main::files{help}{extents}       = "services.html#Extents";
-$main::files{help}{latch}         = "services.html#Latch_Contention";
-$main::files{help}{fragmentation} = "services.html#Fragmentation";
-$main::files{help}{mts}           = "services.html#MTS_Multi_Threaded_Server";
-$main::files{help}{tablespace}    = "services.html#Tablespace_Quotas";
-$main::files{help}{os}            = "services.html#OS_Statistics";
-$main::files{help}{up}            = "services.html#UP_Status";
-$main::files{help}{db}            = "services.html#Initialization_Parameters";
-$main::files{help}{repqueue}      = "services.html#Deferred_Transaction_Queue";
+    'services.html#Rollback_Segment_Contention';
+$main::files{help}{slowsql}       = 'services.html#Slow_SQL';
+$main::files{help}{alertlog}      = 'services.html#Alert_Log_Errors';
+$main::files{help}{hitratios}     = 'services.html#Hit_Ratios';
+$main::files{help}{extents}       = 'services.html#Extents';
+$main::files{help}{latch}         = 'services.html#Latch_Contention';
+$main::files{help}{fragmentation} = 'services.html#Fragmentation';
+$main::files{help}{mts}           = 'services.html#MTS_Multi_Threaded_Server';
+$main::files{help}{tablespace}    = 'services.html#Tablespace_Quotas';
+$main::files{help}{os}            = 'services.html#OS_Statistics';
+$main::files{help}{up}            = 'services.html#UP_Status';
+$main::files{help}{db}            = 'services.html#Initialization_Parameters';
+$main::files{help}{repqueue}      = 'services.html#Deferred_Transaction_Queue';
 $main::files{help}{reperror}      =
-    "services.html#Deferred_Transaction_Error_Queue";
+    'services.html#Deferred_Transaction_Error_Queue';
 
 #
 # shortened service names (no more than 5 characters)
 #
-$main::names{short}{redolog}       = "rdlg";
-$main::names{short}{rollback}      = "rlbk";
-$main::names{short}{slowsql}       = "ssql";
-$main::names{short}{alertlog}      = "alog";
-$main::names{short}{hitratios}     = "hitr";
-$main::names{short}{extents}       = "exts";
-$main::names{short}{latch}         = "ltch";
-$main::names{short}{fragmentation} = "frag";
-$main::names{short}{mts}           = "mts";
-$main::names{short}{tablespace}    = "tbsp";
-$main::names{short}{os}            = "os";
-$main::names{short}{up}            = "up";
-$main::names{short}{db}            = "name";
-$main::names{short}{repqueue}      = "repq";
-$main::names{short}{reperror}      = "rper";
+$main::names{short}{redolog}       = 'rdlg';
+$main::names{short}{rollback}      = 'rlbk';
+$main::names{short}{slowsql}       = 'ssql';
+$main::names{short}{alertlog}      = 'alog';
+$main::names{short}{hitratios}     = 'hitr';
+$main::names{short}{extents}       = 'exts';
+$main::names{short}{latch}         = 'ltch';
+$main::names{short}{fragmentation} = 'frag';
+$main::names{short}{mts}           = 'mts';
+$main::names{short}{tablespace}    = 'tbsp';
+$main::names{short}{os}            = 'os';
+$main::names{short}{up}            = 'up';
+$main::names{short}{db}            = 'name';
+$main::names{short}{repqueue}      = 'repq';
+$main::names{short}{reperror}      = 'rper';
 
 #
 # long service names (for info page titles)
 #
-$main::names{long}{redolog}       = "Redolog Switching";
-$main::names{long}{rollback}      = "Rollback Segment Contention";
-$main::names{long}{slowsql}       = "Slow SQL";
-$main::names{long}{alertlog}      = "Alertlog Errors";
-$main::names{long}{hitratios}     = "Hit Ratios";
-$main::names{long}{extents}       = "Extents";
-$main::names{long}{latch}         = "Latch Contention";
-$main::names{long}{fragmentation} = "Fragmentation";
-$main::names{long}{mts}           = "Multi-threaded Server";
-$main::names{long}{tablespace}    = "Tablespace Quotas";
-$main::names{long}{os}            = "OS Statistics";
-$main::names{long}{up}            = "Database Up";
-$main::names{long}{db}            = "Database Name";
-$main::names{long}{repqueue}      = "Replication Queue";
-$main::names{long}{reperror}      = "Replication Errors";
+$main::names{long}{redolog}       = 'Redolog Switching';
+$main::names{long}{rollback}      = 'Rollback Segment Contention';
+$main::names{long}{slowsql}       = 'Slow SQL';
+$main::names{long}{alertlog}      = 'Alertlog Errors';
+$main::names{long}{hitratios}     = 'Hit Ratios';
+$main::names{long}{extents}       = 'Extents';
+$main::names{long}{latch}         = 'Latch Contention';
+$main::names{long}{fragmentation} = 'Fragmentation';
+$main::names{long}{mts}           = 'Multi-threaded Server';
+$main::names{long}{tablespace}    = 'Tablespace Quotas';
+$main::names{long}{os}            = 'OS Statistics';
+$main::names{long}{up}            = 'Database Up';
+$main::names{long}{db}            = 'Database Name';
+$main::names{long}{repqueue}      = 'Replication Queue';
+$main::names{long}{reperror}      = 'Replication Errors';
 
 $main::names{shown}{redolog}       = 0;
 $main::names{shown}{rollback}      = 0;
@@ -885,9 +885,9 @@ if ((defined ($main::opt_c)) &&
 # for /etc/karma.conf
 #
 } elsif (($main::WINDOWS == 0) &&
-	 (-f "/etc/karma.conf") &&
-	 (-r "/etc/karma.conf")) {
-    $main::CONF_FILE_NAME = "/etc/karma.conf";
+	 (-f '/etc/karma.conf') &&
+	 (-r '/etc/karma.conf')) {
+    $main::CONF_FILE_NAME = '/etc/karma.conf';
     logMessage ("$main::opt_c file not found, using $main::CONF_FILE_NAME instead.\n");
 
 #
@@ -937,7 +937,7 @@ if ((defined ($main::opt_c)) &&
 # is opened before forking, and is written to after...
 #
 if (($main::WINDOWS == 0) && 
-    (not (defined $main::DEBUG_LEVEL))){
+    ($main::DEBUG_LEVEL == 0)) {
     daemonize ();
 }
 
@@ -1139,8 +1139,8 @@ sub showServiceStatus ($$) {
 
     my $theFile = $main::files{info}{$inType};
     my $theStatus = $main::cNO_STATUS; 
-    my $theImage = "";
-    my $theMessage = "";
+    my $theImage = undef;
+    my $theMessage = undef;
 
     if (defined $main::stats{$inType}{$inTNS}[$main::cSTATUS]) {
 	$theStatus = $main::stats{$inType}{$inTNS}[$main::cSTATUS];
@@ -1152,24 +1152,24 @@ sub showServiceStatus ($$) {
 
     if ($theStatus == $main::cALERT_STATUS) {
 	if ($main::USE_BLINK_ALERT == 1) {
-	    $theImage = "blink_red_status";
+	    $theImage = 'blink_red_status';
 	} else {
-	    $theImage = "red_status";
+	    $theImage = 'red_status';
 	}
-	$theMessage = "ALRT";
+	$theMessage = 'ALRT';
     } elsif ($theStatus == $main::cWARNING_STATUS) {
 	if ($main::USE_BLINK_WARNING == 1) {
-	    $theImage = "blink_yellow_status";
+	    $theImage = 'blink_yellow_status';
 	} else {
-	    $theImage = "yellow_status";
+	    $theImage = 'yellow_status';
 	}
-	$theMessage = "WARN";
+	$theMessage = 'WARN';
     } elsif ($theStatus == $main::cNO_STATUS) {
-	$theImage = "purple_status";
-	$theMessage = "NR";
+	$theImage = 'purple_status';
+	$theMessage = 'NR';
     } elsif ($theStatus == $main::cOK_STATUS) {
-	$theImage = "green_status";
-	$theMessage = "OK";
+	$theImage = 'green_status';
+	$theMessage = 'OK';
     }
 
     #
@@ -1178,7 +1178,7 @@ sub showServiceStatus ($$) {
     # the database is down.
     # 
     if ($theStatus == $main::cNO_SHOW) {
-	print $main::index_file ("-");
+	print $main::index_file ('-');
     } else {
 	if (($main::stats{up}{$inTNS}[$main::cSTATUS] == $main::cALERT_STATUS) &&
 	    (not ($inType =~ /^up$/i))) {
@@ -1256,7 +1256,7 @@ sub getRepqueueStatus ($$$) {
 	}
     }
 
-    showInfoPage ($repqueueTableRef, "repqueue", $inTNS, undef);
+    showInfoPage ($repqueueTableRef, 'repqueue', $inTNS, undef);
     return $repqueueStatus;
 }
 
@@ -1333,7 +1333,7 @@ sub getReperrorStatus ($$$) {
 
 
 
-    showInfoPage ($reperrorTableRef, "reperror", $inTNS, undef);
+    showInfoPage ($reperrorTableRef, 'reperror', $inTNS, undef);
     return $reperrorStatus;
 }
 
@@ -1435,7 +1435,7 @@ sub getRedologStatus ($$$) {
     }
 
 
-    showInfoPage ($redoTableRef, "redolog", $inTNS, undef);
+    showInfoPage ($redoTableRef, 'redolog', $inTNS, undef);
     return $redologStatus;
 }
 
@@ -1536,7 +1536,7 @@ sub getRollbackStatus ($$$) {
     }
 
 
-    showInfoPage ($rollbackTableRef, "rollback", $inTNS, undef);
+    showInfoPage ($rollbackTableRef, 'rollback', $inTNS, undef);
     return $rollbackStatus;
 }
 
@@ -1643,7 +1643,7 @@ sub getLatchStatus ($$$) {
     }
 
 
-    showInfoPage ($latchTableRef, "latch", $inTNS, undef);
+    showInfoPage ($latchTableRef, 'latch', $inTNS, undef);
     return $latchStatus;
 }
 
@@ -1672,7 +1672,7 @@ sub getTablespaceStatus ($$$) {
     my $sth = undef;
     my $sthAuto = undef;
     my $rv = 0;
-    my $autoextend = "NO";
+    my $autoextend = 'NO';
 
 #    if ($dbh{$inTNS}) {
     if ($main::db_info{$inTNS}[$main::cDB_HANDLE]) {
@@ -1683,7 +1683,7 @@ sub getTablespaceStatus ($$$) {
 	    logMessageWTime ("getTablespaceStatus:$inTNS prepare - $DBI::errstr\n");
 	}
 	$sthAuto = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare 
-	    ("SELECT autoextensible FROM dba_data_files WHERE tablespace_name = ?");
+	    ('SELECT autoextensible FROM dba_data_files WHERE tablespace_name = ?');
 	if (defined $DBI::errstr) {
 	    logMessageWTime ("getTablespaceStatus:$inTNS prepare - $DBI::errstr\n");
 	}
@@ -1724,12 +1724,12 @@ sub getTablespaceStatus ($$$) {
 		#
 		# check the tablespace for autoextend on *ANY* datafile
 		#
-		$autoextend = "NO";
+		$autoextend = 'NO';
 		$rv = $sthAuto->execute ($curr_row->[0]);
 		$auto_row = $sthAuto->fetchrow_arrayref;
 		while (defined ($auto_row->[0])) {
 		    if ($auto_row->[0] =~ /^YES$/) {
-			$autoextend = "YES";
+			$autoextend = 'YES';
 		    }
 		    $auto_row = $sthAuto->fetchrow_arrayref;
 		}
@@ -1791,7 +1791,7 @@ sub getTablespaceStatus ($$$) {
 	}
     }
 
-    showInfoPage ($tablespaceTableRef, "tablespace", $inTNS, undef);
+    showInfoPage ($tablespaceTableRef, 'tablespace', $inTNS, undef);
     return $tablespaceStatus;
 }
 
@@ -1912,7 +1912,7 @@ sub getSlowsqlStatus ($$$) {
 	    }
 	}
         # build more info page
-	showInfoPage ($slowsqlTableRef, "slowsql", $inTNS, undef);
+	showInfoPage ($slowsqlTableRef, 'slowsql', $inTNS, undef);
 
     }
 
@@ -2034,7 +2034,7 @@ sub getAlertlogStatus ($$$) {
 	}
     }
 
-    showInfoPage ($alertlogTableRef, "alertlog", $inTNS, undef);
+    showInfoPage ($alertlogTableRef, 'alertlog', $inTNS, undef);
 
     return $alertlogStatus;
 
@@ -2151,7 +2151,7 @@ sub getHitratiosStatus ($$$) {
 	    $sth->finish;
 	}
     }
-    showInfoPage ($hitratiosTableRef, "hitratios", $inTNS, undef);
+    showInfoPage ($hitratiosTableRef, 'hitratios', $inTNS, undef);
     return $hitratiosStatus;
 
 }
@@ -2296,7 +2296,7 @@ sub getFragmentationStatus ($$$) {
 		
 		@{$fragmentationTableRef->[$fragmentationRowCount]} = 
 		    ($currStatus, 
-		     "Tablespace",
+		     'Tablespace',
 		     $array_ref->[0],
 		     $array_ref->[1],
 		     $array_ref->[2],
@@ -2361,7 +2361,7 @@ sub getFragmentationStatus ($$$) {
 	}
     }
 
-    showInfoPage ($fragmentationTableRef, "fragmentation", $inTNS, undef);
+    showInfoPage ($fragmentationTableRef, 'fragmentation', $inTNS, undef);
     return $fragmentationStatus;
 
 }
@@ -2463,7 +2463,7 @@ sub getOSStatus ($$$) {
 	}
     }
 
-    showInfoPage ($osTableRef, "os", $inTNS, undef);
+    showInfoPage ($osTableRef, 'os', $inTNS, undef);
     return $osStatus;
 
 }
@@ -2556,7 +2556,7 @@ sub getMTSStatus ($$$) {
 	}
     }
 
-    showInfoPage ($mtsTableRef, "mts", $inTNS, undef);
+    showInfoPage ($mtsTableRef, 'mts', $inTNS, undef);
     return $mtsStatus;
 
 }
@@ -2661,7 +2661,7 @@ sub getUpStatus ($) {
 	    }
 	    
 	}
-	showInfoPage ($upTableRef, "up", $inTNS, undef);
+	showInfoPage ($upTableRef, 'up', $inTNS, undef);
 
     } else {
 
@@ -2670,7 +2670,7 @@ sub getUpStatus ($) {
 	#
 	# don't show unless we have a db handle
 	#
-	showInfoPage (undef, "up", $inTNS, $showMessage);
+	showInfoPage (undef, 'up', $inTNS, $showMessage);
     }
 
     debugMessage ("getUpStatus:$inTNS, $upStatus, returning\n",2);
@@ -2739,11 +2739,11 @@ sub getDbStatus ($) {
 	    }
 	}
 #	debugMessage ("getDbStatus:$inTNS - normal info page\n",2);
-	showInfoPage ($dbTableRef, "db", $inTNS, undef);
+	showInfoPage ($dbTableRef, 'db', $inTNS, undef);
 
     } else {
 	debugMessage ("getDbStatus:$inTNS - down info page\n",2);
-	showInfoPage (undef, "db", $inTNS, 
+	showInfoPage (undef, 'db', $inTNS, 
 		      'Cannot connect.  Check "up" status for details');
     }
 
@@ -2849,7 +2849,7 @@ sub getExtentsStatus ($$$) {
 	}
     }
 
-    showInfoPage ($extentsTableRef, "extents", $inTNS, undef);
+    showInfoPage ($extentsTableRef, 'extents', $inTNS, undef);
     return $extentsStatus;
 
 }
@@ -2881,7 +2881,7 @@ sub getInfo ($$$) {
 	    $theStatus{up} = $main::cALERT_STATUS;
 	} elsif ($main::names{shown}{$key} == 1) {
 #	    $theStatus{$key} = $main::cNO_STATUS;
-	    if (defined ($main::config_info{$thePrefGroup}{$key})) {
+	    if (defined (@{$main::config_info{$thePrefGroup}{$key}})) {
 		$theStatus{$key} = $main::cNO_STATUS;
 	    } else {
 		$theStatus{$key} = $main::cNO_SHOW;
@@ -2890,7 +2890,7 @@ sub getInfo ($$$) {
     }
 
 
-    $theStatus{up} = getStatus ($thePrefGroup, "up", $inTNS);
+    $theStatus{up} = getStatus ($thePrefGroup, 'up', $inTNS);
     $main::stats{up}{$inTNS}[$main::cSTATUS] = $theStatus{up};
     $main::stats{up}{$inTNS}[$main::cUPD_TIME] = $main::currTime;
 
@@ -2899,7 +2899,7 @@ sub getInfo ($$$) {
     #
     # dbStatus doesn't seem to be used here...
     #
-    $theStatus{db} = getStatus ($thePrefGroup, "db", $inTNS);
+    $theStatus{db} = getStatus ($thePrefGroup, 'db', $inTNS);
     $main::stats{db}{$inTNS}[$main::cSTATUS] = $theStatus{up};
     $main::stats{db}{$inTNS}[$main::cUPD_TIME] = $main::currTime;
 
@@ -2915,9 +2915,14 @@ sub getInfo ($$$) {
     } else {
 	debugMessage ("getInfo:$inTNS - seting NO_STATUS\n",2);
 	foreach $key (keys %{$main::names{long}}) {
-	    if ((not ($key =~ /^up$/)) &&
-		(defined ($main::config_info{$thePrefGroup}{$key}))) {
-		$main::stats{$key}{$inTNS}[$main::cSTATUS] = $main::cNO_STATUS;
+	    if (not ($key =~ /^up$/)) {
+		if (defined (@{$main::config_info{$thePrefGroup}{$key}})) {
+		    $main::stats{$key}{$inTNS}[$main::cSTATUS] =
+			$main::cNO_STATUS;
+		} else {
+		    $main::stats{$key}{$inTNS}[$main::cSTATUS] =
+			$main::cNO_SHOW;
+		}
 	    }
 	}
     }
@@ -3112,12 +3117,12 @@ sub readConfig ($) {
     # iterate on lines
     my $eofile = 0;
     my $db_count = 0;
-    my $curr_line = "";
+    my $curr_line = '';
     my @curr_array = ();
-    my $theTNS = "";
-    my $theUser = "";
-    my $thePass = "";
-    my $theGroup = "";
+    my $theTNS = '';
+    my $theUser = '';
+    my $thePass = '';
+    my $theGroup = '';
     my $key = undef;
     $main::pref_groups = undef;
     
@@ -3144,7 +3149,7 @@ sub readConfig ($) {
 	    chop ($curr_line);
 
 
-	    @curr_array = split (":", $curr_line);
+	    @curr_array = split (':', $curr_line);
 
 	    if ($curr_array[0] =~ /^karma$/i) {
 
@@ -3218,19 +3223,19 @@ sub readConfig ($) {
 		     ($curr_array[0] =~ /^reperror$/i) ||
 		     ($curr_array[0] =~ /^mts$/i)) {
 	
-		setConfig ("default",
+		setConfig ('default',
 			      $curr_array[0],
 			      $curr_array[1],
 			      $curr_array[2],
 			      $curr_array[3]);
 	    } elsif (($curr_array[0] =~ /^$main::cNOTIFY_ALRT$/i) ||
 		     ($curr_array[0] =~ /^$main::cNOTIFY_WARN$/i)) {
-		setConfigNotify ("default",
+		setConfigNotify ('default',
 				   $curr_array[0],
 				   $curr_array[1],
 				   $curr_array[2]);
 	    } elsif ($curr_array[0] =~ /^$main::cNOTIFY_EMAIL$/i) {
-		setConfigEmail ("default",
+		setConfigEmail ('default',
 				  $curr_array[1],
 				  $curr_array[2]);
 	    } elsif ($curr_array[0] =~ /^warn_blink$/i) {
@@ -3312,9 +3317,9 @@ sub readConfig ($) {
     # initialize everything to $main::cNO_STATUS;
     #
     # iterate on all configured services
-    my $servKey = "";
-    my $tnsKey = "";
-    my $prefGroup = "";
+    my $servKey = '';
+    my $tnsKey = '';
+    my $prefGroup = '';
     foreach $servKey (keys %{$main::config_info{default}}) {
 #    foreach $servKey (keys %{$main::names{long}}) {
 #	if ($main::names{shown} == 1) {
@@ -3846,14 +3851,14 @@ sub catchHUP {
 sub showStatus {
 #    logMessage ("kill -USR1, return status via named pipe\n");
 
-    my $dbStatus = "";
+    my $dbStatus = '';
     my $startTimeStr = getTimeString ($main::startTime);
     my $currTimeStr = getCurrTimeString (undef);
-    my $timeStr = "";
-    my $statusStr = "";
-    my $thePrefGroup = "";
-    my $servKey = "";
-    my $tnsKey = "";
+    my $timeStr = '';
+    my $statusStr = '';
+    my $thePrefGroup = '';
+    my $servKey = '';
+    my $tnsKey = '';
 
     open (FIFO, ">$main::KARMA_FIFO_NAME");
     print FIFO ("karmad started at $startTimeStr, pid:$main::KARMA_PID\n");
@@ -3866,9 +3871,9 @@ sub showStatus {
 
 	$thePrefGroup = getPrefGroup ($tnsKey);
 #	$thePrefGroup = $main::db_info{$tnsKey}[$main::cDB_PREFGROUP];
-	$dbStatus = "DOWN";
+	$dbStatus = 'DOWN';
 	if (defined $main::db_info{$tnsKey}[$main::cDB_HANDLE]) {
-	    $dbStatus = "UP";
+	    $dbStatus = 'UP';
 	}
 	print FIFO ("  DB:$tnsKey $dbStatus, Prefgroup:$thePrefGroup - services:\n");
 
@@ -3978,7 +3983,7 @@ sub doNotification ($$) {
 			       @notifyServices);
 	} else {
 	    $send_msg = 0;
-	    $notifySize = "full";
+	    $notifySize = 'full';
 	    @warnServices = 
 		getNotifyServices ($prefGroup, $main::cNOTIFY_WARN);
 
@@ -4110,7 +4115,7 @@ sub sendNotification ($$@) {
     my ($inType, $inTNS, @inServices) = @_;
     my $pref_group = getPrefGroup ($inTNS);
 #    my $pref_group = $main::db_info{$inTNS}[$main::cDB_PREFGROUP];
-    my $subject = "";
+    my $subject = '';
     my $email_count = 0;
     my @emails = undef;
     my $keySize = undef;
@@ -4131,14 +4136,14 @@ sub sendNotification ($$@) {
 	
 	if ($email_count > 0) {
 	    my $count = 0;
-	    my $message = "";
+	    my $message = '';
 	    my $i = 0;
 	    
 	    $message = "$inTNS:";
 	    if ($inType =~ /^$main::cNOTIFY_WARN$/i) {
-		$message .= "WARN:";
+		$message .= 'WARN:';
 	    } else {
-		$message .= "ALRT:";
+		$message .= 'ALRT:';
 	    }
 	    $count = scalar @inServices;
 	    for ($i = 0; $i < $count; $i++) {
@@ -4150,9 +4155,9 @@ sub sendNotification ($$@) {
 		$subject = $message;
 		$message = "$inTNS database ";
 		if ($inType =~ /^$main::cNOTIFY_WARN$/i) {
-		    $message .= "WARNING";
+		    $message .= 'WARNING';
 		} else {
-		    $message .= "**ALERT**";
+		    $message .= '**ALERT**';
 		}
 		
 		$message .= " - The following services have problems:\n";
@@ -4167,7 +4172,7 @@ sub sendNotification ($$@) {
 	    # iterate on each email address in config_email hash of arrays
 	    #
 	    #show_config_email ();
-	    my $email = "";
+	    my $email = '';
 	    for ($i = 0; $i < $email_count; $i++ ) {
 		$email = $emails[$i];
 		if ($main::USE_EMAIL_NOTIFICATION == 1) {
@@ -4287,7 +4292,7 @@ sub show_stats () {
 #-----------------------------------------------------------------------
 sub show_pref_groups () {
  
-    print ("show_pref_groups:");
+    print ('show_pref_groups:');
     my $key = undef;
     foreach $key (keys %main::pref_groups) {
 	print ("\"$key,\"");
@@ -4368,15 +4373,15 @@ sub setDefConfig () {
 	logMessageWTime ("$DBI::errstr\n");
     }
 
-    setConfig ("default","up", undef, undef, undef);
-    setConfig ("default","redolog", undef, undef, undef);
-    setConfig ("default","rollback", undef, undef, undef);
-    setConfig ("default","slowsql", undef, undef, undef);
-    setConfig ("default","hitratios", undef, undef, undef);
-    setConfig ("default","extents", undef, undef, undef);
-    setConfig ("default","latch", undef, undef, undef);
-    setConfig ("default","fragmentation", undef, undef, undef);
-    setConfig ("default","tablespace", undef, undef, undef);
+    setConfig ('default','up', undef, undef, undef);
+    setConfig ('default','redolog', undef, undef, undef);
+    setConfig ('default','rollback', undef, undef, undef);
+    setConfig ('default','slowsql', undef, undef, undef);
+    setConfig ('default','hitratios', undef, undef, undef);
+    setConfig ('default','extents', undef, undef, undef);
+    setConfig ('default','latch', undef, undef, undef);
+    setConfig ('default','fragmentation', undef, undef, undef);
+    setConfig ('default','tablespace', undef, undef, undef);
 
 }
 
@@ -4582,12 +4587,12 @@ sub isValidTNS ($) {
     my ($inTNS) = @_;
 
     my $i = 0;
-    my @tns_names = DBI->data_sources ("dbi:Oracle:");
-    my $aTNS = "";
+    my @tns_names = DBI->data_sources ('dbi:Oracle:');
+    my $aTNS = '';
     my @source = ();
 
     while (defined ($tns_names[$i])) {
-	@source = split (":", $tns_names[$i]);
+	@source = split (':', $tns_names[$i]);
 	$aTNS = $source[2];
 	if ($inTNS =~ /^$aTNS$/i) {
 	    return 1;
@@ -4663,15 +4668,15 @@ sub writePidFile () {
 sub getStatusStr ($) {
     my ($inStatus) = @_;
 
-    my $retStr = "--";
+    my $retStr = '--';
     if ($inStatus == $main::cALERT_STATUS) {
-	$retStr = "ALRT";
+	$retStr = 'ALRT';
     } elsif ($inStatus == $main::cWARNING_STATUS) {
-	$retStr = "WARN";
+	$retStr = 'WARN';
     } elsif ($inStatus == $main::cOK_STATUS) {
-	$retStr = "OK";
+	$retStr = 'OK';
     } elsif ($inStatus == $main::cNO_STATUS) {
-	$retStr = "NO";
+	$retStr = 'NO';
     }
 
     return $retStr;
@@ -4700,7 +4705,7 @@ sub getServices ($$) {
 	    push (@retServices, $key);
 	}
     } else {
-	@retServices = split (",", $inServices);
+	@retServices = split (',', $inServices);
     }
 
     return @retServices;

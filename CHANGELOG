@@ -174,7 +174,7 @@ Version 0.9.4
     o a tbsp with an autoextend datafile is always green
     o fixed bug with min_wakeup time (refresh interval)
 Version 0.9.5
-  1.3.99
+  1.3.00
 
     o handling karmagentd win32 conditions
     o karmagentd logging messages
@@ -182,3 +182,9 @@ Version 0.9.5
     o karmagentd handling term, hup signals
     o karmagentd handles reset alertlog (reread from beginning)
     o slowsql defaults to OK status
+  1.19.00
+
+    o fixed problem where down DBs didn't respect unmonitored services
+    o fixed misc "use of unitialized values" errors
+    o karmagentd exits if can't find or open alert.log
+    o cleaned up some "" where '' are better

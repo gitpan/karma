@@ -7,7 +7,5 @@ DESCRIPTION
 
 1.0.0
     o remaining Win32 problems, check email notification
-    o db down respects unmonitored services
     o decide on how to handle redo-log switching exception, a la D. Lawlie
     o alertlog monitoring should be verifiable even when no errors found
-    o karmagentd error message if running as non-oracle user

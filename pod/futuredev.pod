@@ -49,6 +49,12 @@ o more services monitored
 =item
 - backup success
 
+=item
+- buffer busy waits
+
+=item
+- locks
+
 =back
 
 =item
@@ -124,6 +130,12 @@ o reorganize code (OOP)
 
 =item
 o mySQL, other db modules
+
+=item
+o past 1 or 2 days worth of log data (with link and info page)
+
+=item
+o log statuses over time, use cricket for graphing
 
 =back
 

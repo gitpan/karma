@@ -18,6 +18,8 @@ Details
     - monitor sqlnet performance
     - archive dest directory
     - backup success
+    - buffer busy waits
+    - locks
     o karma.conf
     - specify frames/no frames/no tables support
     - specify no html pages generated, text only
@@ -42,3 +44,5 @@ Details
     o Duncan's redolog monitoring ideas
     o reorganize code (OOP)
     o mySQL, other db modules
+    o past 1 or 2 days worth of log data (with link and info page)
+    o log statuses over time, use cricket for graphing

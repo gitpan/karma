@@ -1,0 +1,209 @@
+Using config file: /home/shull/karma/karma096/mfi.conf 
+01/12/2000 18:24 - Invalid TNS - DB1DEV
+01/12/2000 18:24 - No valid databases found (check tnsnames.ora).
+01/12/2000 18:24 - Exiting karma.
+Using config file: /home/shull/karma/karma096/mfi.conf 
+01/12/2000 18:25 - Invalid TNS - DB1DEV
+01/12/2000 18:25 - No valid databases found (check tnsnames.ora).
+01/12/2000 18:25 - Exiting karma.
+Using config file: /home/shull/karma/karma096/test.conf 
+01/19/2000 01:13 - readConfig - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 01:13 - Started karmad.
+Using EMAIL notification.
+01/19/2000 01:13 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 01:13 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 01:16 - Refreshing service statuses for all dbs.
+01/19/2000 01:18 - Refreshing service statuses for all dbs.
+01/19/2000 01:18 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 01:18 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 01:23 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 01:28 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 01:28 - Received TERM signal, exiting karmad
+01/19/2000 01:28 - Exiting karma.
+Using config file: /home/shull/karma/karma096/test.conf 
+01/19/2000 01:37 - readConfig - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 01:37 - Started karmad.
+Using EMAIL notification.
+01/19/2000 01:37 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 01:39 - Refreshing service statuses for all dbs.
+01/19/2000 01:41 - Refreshing service statuses for all dbs.
+01/19/2000 01:41 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 01:41 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 01:46 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 01:46 - Received TERM signal, exiting karmad
+01/19/2000 01:46 - Exiting karma.
+Using config file: /home/shull/karma/karma096/test.conf 
+01/19/2000 01:50 - readConfig - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 01:50 - Started karmad.
+Using EMAIL notification.
+01/19/2000 01:50 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 01:51 - Refreshing service statuses for all dbs.
+01/19/2000 01:52 - Refreshing service statuses for all dbs.
+01/19/2000 01:52 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 01:52 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 01:57 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 01:57 - Received TERM signal, exiting karmad
+01/19/2000 01:57 - Exiting karma.
+Using config file: /home/shull/karma/karma096/test.conf 
+01/19/2000 01:58 - readConfig - ORA-01034: ORACLE not available (DBD: login failed)
+   IS Win32:NO
+WORKING DIR:/home/shull/karma/karma096
+   LOG FILE:/home/shull/karma/karma096/karma.log
+CONFIG FILE:/home/shull/karma/karma096/test.conf
+ INDEX FILE:/home/shull/karma/karma096/doc_root/karma.html
+   PID FILE:/home/shull/karma/karma096/.karma.pid
+DOCROOT DIR:/home/shull/karma/karma096/doc_root
+ KARMA HOME:/home/shull/karma/karma096
+01/19/2000 01:58 - Started karmad.
+Using EMAIL notification.
+getUpStatus:AEON - We have db handle, and can ping db...
+01/19/2000 01:58 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+getUpStatus:UNA - NO db handle, or failed PING...
+getUpStatus:AEON - We have db handle, and can ping db...
+01/19/2000 01:59 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+getUpStatus:UNA - NO db handle, or failed PING...
+01/19/2000 01:59 - Received TERM signal, exiting karmad
+01/19/2000 01:59 - Exiting karma.
+Using config file: /home/shull/karma/karma096/test.conf 
+01/19/2000 02:00 - readConfig - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 02:00 - Started karmad.
+Using EMAIL notification.
+01/19/2000 02:00 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 02:05 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 02:06 - Received TERM signal, exiting karmad
+01/19/2000 02:06 - Exiting karma.
+Using config file: /home/shull/karma/karma096/test.conf 
+01/19/2000 02:07 - readConfig - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 02:07 - Started karmad.
+Using EMAIL notification.
+getUpStatus:AEON - We have db handle, and can ping db...
+01/19/2000 02:07 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+Using config file: /home/shull/karma/karma096/test.conf 
+01/19/2000 02:11 - readConfig - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 02:11 - Started karmad.
+Using EMAIL notification.
+01/19/2000 02:11 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+getUpStatus:AEON - We have db handle, and can ping db...
+01/19/2000 02:12 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 02:12 - Received TERM signal, exiting karmad
+01/19/2000 02:12 - Exiting karma.
+01/19/2000 02:11 - Received TERM signal, exiting karmad
+01/19/2000 02:11 - Exiting karma.
+Using config file: /home/shull/karma/karma096/test.conf 
+01/19/2000 02:12 - readConfig - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 02:12 - Started karmad.
+Using EMAIL notification.
+01/19/2000 02:12 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 02:12 - Received TERM signal, exiting karmad
+01/19/2000 02:12 - Exiting karma.
+Using config file: /home/shull/karma/karma096/test.conf 
+01/19/2000 02:15 - readConfig - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 02:15 - Started karmad.
+Using EMAIL notification.
+01/19/2000 02:15 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 02:20 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 02:25 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 02:30 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 02:35 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 02:40 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 02:45 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 02:50 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 02:55 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 03:00 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 03:05 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 03:10 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 03:15 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 03:20 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 03:25 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 03:30 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 03:35 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 03:40 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 03:45 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 03:50 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 03:55 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 04:00 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 04:05 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 04:11 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 04:16 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 04:21 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 04:26 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 04:31 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 04:36 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 04:41 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 04:46 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 04:51 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 04:56 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 05:01 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 05:06 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 05:11 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 05:16 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 05:21 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 05:26 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 05:31 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 05:36 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 05:41 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 05:46 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 05:51 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 05:56 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 06:01 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 06:06 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 06:11 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 06:16 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 06:21 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 06:26 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 06:31 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 06:36 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 06:41 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 06:46 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 06:51 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 06:56 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 07:01 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 07:06 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 07:11 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 07:16 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 07:21 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 07:26 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 07:31 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 07:36 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 07:41 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 07:46 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 07:51 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 07:56 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 08:01 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 08:06 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 08:11 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 08:16 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 08:21 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 08:26 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 08:31 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 08:36 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 08:41 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 08:46 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 08:51 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 08:56 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 09:01 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 09:06 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+001/19/2000 09:16 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 09:21 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 09:26 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 09:31 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 09:36 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 09:41 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 09:46 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 09:51 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 09:56 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 10:01 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 10:06 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 10:11 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 10:16 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 10:21 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 10:26 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 10:31 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 10:36 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 10:41 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 10:46 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 10:51 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 10:56 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 11:01 - getUpStatus:UNA - ORA-01034: ORACLE not available (DBD: login failed)
+01/19/2000 11:01 - Received TERM signal, exiting karmad
+01/19/2000 11:01 - Exiting karma.

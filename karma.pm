@@ -53,9 +53,9 @@ sub getDayMinutes ($);
 # perl standards like real number version numbers, so for
 # now we'll drop the linux convention...
 #
-$main::KVERSION="0.9.5";
-$main::VERSION="0.95";
-$main::DEBUG_LEVEL = undef;
+$main::KVERSION='0.9.6';
+$main::VERSION='0.96';
+$main::DEBUG_LEVEL = 0;
 
 #
 # documentation colors
@@ -246,14 +246,14 @@ sub getCurrTimeString ($) {
 #---------------------------------------------------------------
 sub padNum ($$) {
     my ($inNum, $inPadSize) = @_;
-    my $retStr = "";
+    my $retStr = '';
     my $currSize = 0;
     if (defined $inNum) {
 	$currSize = length $inNum;
     }
     my $i = 0;
     for ($i = $currSize; $i < $inPadSize; $i++) {
-	$retStr .= "0";
+	$retStr .= '0';
     }
     if (defined $inNum) {
 	$retStr .= $inNum;
@@ -327,6 +327,7 @@ sub debugMessage ($$) {
 	    } else {
 		print $inMessage;
 	    }
+	    
 	}
     } elsif ($main::DEBUG_LEVEL > 0) {
 	if (defined ($main::logfile)) {

@@ -97,7 +97,7 @@ require 5.004;
 #
 $main::CMD_UPTIME = undef;
 if ($main::WINDOWS == 0) {
-    $main::CMD_UPTIME = "/usr/bin/uptime";
+    $main::CMD_UPTIME = '/usr/bin/uptime';
 }
 
 #
@@ -148,7 +148,7 @@ if (defined $main::opt_r) {
     resetAlertlog ();
 }
 
-$main::TNS = "";
+$main::TNS = '';
 if (defined $main::opt_t) {
     $main::TNS = $main::opt_t;
 } elsif (defined ($ENV{DBI_DSN})) {
@@ -176,18 +176,18 @@ if (defined $main::opt_a) {
 	}
     }
 }
-$main::PASS = "manager";
+$main::PASS = 'manager';
 if (defined $main::opt_p) {
     $main::PASS = $main::opt_p;
 } elsif (defined ($ENV{DBI_PASS})) {
     $main::PASS = $ENV{DBI_PASS};
 } else {
-    print ("Password: ");
+    print ('Password: ');
     $main::PASS = <STDIN>;
     chomp ($main::PASS);
 }
 
-$main::USER = "karma";
+$main::USER = 'karma';
 if (defined $main::opt_u) {
     $main::USER = $main::opt_u;
 } elsif (defined ($ENV{DBI_USER})) {
@@ -235,7 +235,7 @@ if (defined $main::opt_k) {
 #
 # set the logfile name
 #
-$main::LOG_FILE_NAME = "-";
+$main::LOG_FILE_NAME = '-';
 if (defined ($main::opt_l)) {
     if ($main::WINDOWS == 1) {
 	if ($main::opt_l =~ /^\w:/) {
@@ -295,7 +295,7 @@ if ($main::WINDOWS == 0) {
     $SIG{HUP} = \&catchHup;
 }
 
-$main::cALERT_POSITION = "alert_position";
+$main::cALERT_POSITION = 'alert_position';
 $main::cBEGINNING_OF_FILE = 0;
 
 @main::uptimes = ();
@@ -322,9 +322,9 @@ debugMessage ("   POS_FILE:$main::POSITION_FILE\n", 1);
 # statements for inserting data into the db
 #
 $main::uptimeStatement =
-    "INSERT INTO karma_os_stats VALUES (sysdate, ?, ?, ?, 0)";
+    'INSERT INTO karma_os_stats VALUES (sysdate, ?, ?, ?, 0)';
 $main::alertlogStatement =
-    "INSERT INTO karma_alertlog_errors VALUES (sysdate, ?, ?, ?)";
+    'INSERT INTO karma_alertlog_errors VALUES (sysdate, ?, ?, ?)';
 
 
 #
@@ -350,7 +350,7 @@ if (defined $main::dbh) {
 $main::prevTime = getDayMinutes (time ());
 $main::currTime = 0;
 
-$main::currLine = "";
+$main::currLine = '';
 $main::currPosition = 0;
 if (defined $main::opt_j) {
     $main::currPosition = $main::opt_j;
@@ -458,7 +458,7 @@ sub checkLine ($) {
     if ($inLine =~ /^ORA-/) {
 
 	debugMessage ("ERRORS --- $inLine\n", 1);
-	$facility = "ORA";
+	$facility = 'ORA';
 	$errNum = $inLine;
 	$errNum =~ s/^ORA-//;
 	$errNum =~ s/\s.*$//;
@@ -481,7 +481,7 @@ sub checkLine ($) {
 sub readPosition ($) {
     my ($inFile) = @_;
 
-    my $currLine = "";
+    my $currLine = '';
     my $retPos = 0;
 
     
