@@ -2,8 +2,8 @@ NAME
     Karma - Changelog
 
 DESCRIPTION
-    I've tried to keep track of version by version changes, and
-    you'll find most of them here.
+    I've tried to keep track of version by version changes, and you'll find
+    most of them here.
 
 Prerelease
   07.15.99
@@ -31,25 +31,25 @@ Version 0.7.0
     o added signal handling (Thanks Mike)
     o added karmactl routine
     o added signal handlers for:
-    - HUP reread config file
-    - USR1 return status
-    - TERM exit gracefully
+        - HUP reread config file
+        - USR1 return status
+        - TERM exit gracefully
   09.10.99
 
     o revamped karma.conf
-    - added preference groups
-    - added warning and alert notification
-    - added settings for blinking/noblinking icons
+        - added preference groups
+        - added warning and alert notification
+        - added settings for blinking/noblinking icons
   09.11.99
 
     o got email notification working fairly well
   09.12.99
 
     o setup karma-user, karma-dev, karma-announce email lists
-    o setup factory defaults (valid defauls if a service isn't specified
-      in karma.conf file)
-    o if no karma.conf file but DBI_DSN, DBI_USER, DBI_PASS are set,
-      uses those, and monitors that database
+    o setup factory defaults (valid defauls if a service isn't specified in
+    karma.conf file)
+    o if no karma.conf file but DBI_DSN, DBI_USER, DBI_PASS are set, uses
+    those, and monitors that database
     o replaced standard perl open and filehandles with new IO::File calls
   09.20.99
 
@@ -104,10 +104,10 @@ Version 0.9.0
     o on/off flag in config file
   11.25.99
 
-    o when multiple pref groups have different services enabled,
-      unmonitored services get "-" in table
-    o karmactl -f forces a refresh of all monitored services against
-      all monitored databases
+    o when multiple pref groups have different services enabled, unmonitored
+    services get "-" in table
+    o karmactl -f forces a refresh of all monitored services against all
+    monitored databases
     o cleaned up pref_groups datastructures
     o bkgd karmad, karmagentd automatically with fork ()
   11.27.99
@@ -137,8 +137,8 @@ Version 0.9.2
     o calling Win32::IsWin95, Win32::IsWinNT
     o signal handling unix only
     o daemonize which uses fork () only called on unix
-    o backgrounding job on Win32 (from karmactl) with system
-      ("start perl karmad -opts");
+    o backgrounding job on Win32 (from karmactl) with system ("start perl
+    karmad -opts");
     o handling delimiter '/' on unix, '\\' on Win32
 Version 0.9.3
   12.09.99
@@ -146,25 +146,24 @@ Version 0.9.3
     o cleaned up file/directory name setting code
   12.11.99
 
-    o converted all html and text documents to pod including
-      credits, todo, changelog, bugs, config, contribute,
-      futuredev, install, quickstart, readme, release, security,
-      license, and services
-    o created a script to generate html and text docs in the
-      appropriate directories, MAJOR LABOR-SAVER
+    o converted all html and text documents to pod including credits, todo,
+    changelog, bugs, config, contribute, futuredev, install, quickstart,
+    readme, release, security, license, and services
+    o created a script to generate html and text docs in the appropriate
+    directories, MAJOR LABOR-SAVER
   12.12.99
 
-    o fixed up color contrast problems, using light-blue background, 
-      black text
+    o fixed up color contrast problems, using light-blue background, black
+    text
     o if no valid tnsnames are found, karma exits with message to logfile
-    o fixed a major bug which was leaving the db handle screwed up after
-      the fork in daemonize... moved daemonize to earlier place in code
-      and also check dbh more often with ping, cleanup, and reconnect if
-      necessary.  This forced me to add lots of checking, for valid $sth
-      statement handles, to add $sth->finish calls, and sprinkled 
-      debugMessage calls throughout the code.
+    o fixed a major bug which was leaving the db handle screwed up after the
+    fork in daemonize... moved daemonize to earlier place in code and also
+    check dbh more often with ping, cleanup, and reconnect if necessary.
+    This forced me to add lots of checking, for valid $sth statement
+    handles, to add $sth->finish calls, and sprinkled debugMessage calls
+    throughout the code.
     o fixed bug when no karma.conf file found, and karma uses DBI_USER,
-      DBI_PASS, DBI_DSN...
+    DBI_PASS, DBI_DSN...
 Version 0.9.4
   12.18.99
 
@@ -193,8 +192,25 @@ Version 0.9.6
 
     o fixed big email notification bug
     o blinking icons config directive fixed, warn_blink=[false|no|0],
-      alert_blink=[false|no|0], otherwise blinking icons are used
+    alert_blink=[false|no|0], otherwise blinking icons are used
     o list of valid service names if debug_level = 2
     o karma returns error if ORACLE_HOME set to invalid directory
     o fragmentation checks only first 100 fragmented objs
 Version 0.9.7
+  6.23.00
+
+    o added support for configuring doc_root in karma.conf file
+    o fixed bugs with config file from karmactl, karmad etc...
+    o updated links page
+  6.25.00
+
+    o added threshold warn and alert values to more info page
+    o changed extents checking to >=
+    o alertlog monitoring verifiable even when not running, or tables not
+    created
+    o password entered without echoing
+    o various unitialized values errors fixed
+  6.26.00
+
+    o docs explain services, how to tune, instead of karma config info
+Version 0.9.8

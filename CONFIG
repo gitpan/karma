@@ -6,15 +6,14 @@ DESCRIPTION
     karma.conf configuration file to control the behavior of Karma.
 
 Installing a read-only user in your database
-    Karma needs to login to your target databases in order to
-    monitor them. If you're not doing alertlog or OS monitoring
+    Karma needs to login to your target databases in order to monitor them.
+    If you're not doing alertlog or OS monitoring
 
-    then Karma is completely read-only. If you're concerned about
-    Karma making changes in your database, create a read-only user
-    for it to login as. The supplied script
-    $KARMA/sql/karma_user.sql will do just that. Examine the script,
-    then login as sys, and run it like this (we're assuming here
-    that you've cd'd into the "sql" directory:
+    then Karma is completely read-only. If you're concerned about Karma
+    making changes in your database, create a read-only user for it to login
+    as. The supplied script $KARMA/sql/karma_user.sql will do just that.
+    Examine the script, then login as sys, and run it like this (we're
+    assuming here that you've cd'd into the "sql" directory:
 
     SQL> @karma_user.sql
 
@@ -30,19 +29,19 @@ Installing a read-only user in your database
     configuring a karma.conf file.
 
 Basic Editing of the karma.conf file
-    The karma.conf file is the core configuration file for karma.
-    Eventually it will be updatable via a web front-end, but for now
-    one must edit the file.
+    The karma.conf file is the core configuration file for karma. Eventually
+    it will be updatable via a web front-end, but for now one must edit the
+    file.
 
-    The 'karma' line is a directive to karma of a database it needs
-    to monitor.
+    The 'karma' line is a directive to karma of a database it needs to
+    monitor.
 
     `karma:*:VENUS:karma:amrak' `karma:*:MARS:karma:amrak'
 
-    In this case karma will monitor the VENUS and MARS databases.
-    The last two parameters are the username and password to login
-    with. 'MARS' and 'VENUS' must be defined in the tnsnames.ora
-    file otherwise an error will be returned.
+    In this case karma will monitor the VENUS and MARS databases. The last
+    two parameters are the username and password to login with. 'MARS' and
+    'VENUS' must be defined in the tnsnames.ora file otherwise an error will
+    be returned.
 
     The format of most other lines in this file are:
 
@@ -50,49 +49,47 @@ Basic Editing of the karma.conf file
 
     The SERVICE can be one of these:
 
-    redologs rollback tablespaces slowsql alertlog hitratios
-    fragmentation extents latch mts repqueue reperror
+    redologs rollback tablespaces slowsql alertlog hitratios fragmentation
+    extents latch mts repqueue reperror
 
-    X - how often (in minutes) to monitor this info Y - warning
-    threshold Z - alert threshold
+    X - how often (in minutes) to monitor this info Y - warning threshold Z
+    - alert threshold
 
-    A service is not monitored if it's time column is 0, or it is
-    commented out with the # character, or if it is not in the file
-    at all. For repeated entries, the last one listed will be used.
+    A service is not monitored if it's time column is 0, or it is commented
+    out with the # character, or if it is not in the file at all. For
+    repeated entries, the last one listed will be used.
 
     A very simple configuration would look like this:
 
-    `redologs' `rollback' `tablespace' `slowsql' `hitratios'
-    `fragmentation' `extents' `latch'
+    `redologs' `rollback' `tablespace' `slowsql' `hitratios' `fragmentation'
+    `extents' `latch'
 
     In this case, the factory defaults for X, Y, and Z will be used.
     Conversely, set your own values:
 
     `tablespace:15:85:95'
 
-    Which directs karma to check up on tablespace quotas every 15
-    minutes, flagging a warning if they are 85% full, or an alert if
-    they are 95% full.
+    Which directs karma to check up on tablespace quotas every 15 minutes,
+    flagging a warning if they are 85% full, or an alert if they are 95%
+    full.
 
 Editing the karma.conf using Preference Groups
-    By default karma uses a default preference group. That's what
-    the '*' is for in the second field. It can also be blank, or the
-    word default:
+    By default karma uses a default preference group. That's what the '*' is
+    for in the second field. It can also be blank, or the word default:
 
     `karma:*:MARS:karma:amrak' `karma::MARS:karma:amrak'
     `karma:default:MARS:karma:amrak'
 
-    All three achieve the same result. However, one can break the
-    preference settings up into groups. These are given case
-    sensitive names in this karma line, and karma then looks for
-    config lines later in the file, PREPENDED with this name.
+    All three achieve the same result. However, one can break the preference
+    settings up into groups. These are given case sensitive names in this
+    karma line, and karma then looks for config lines later in the file,
+    PREPENDED with this name.
 
-    `karma:New York:MARS:karma:amrak' `New York:tablespace:10:80:90'
-    `New York:slowsql' `New York:hitratios:2:85:95'
+    `karma:New York:MARS:karma:amrak' `New York:tablespace:10:80:90' `New
+    York:slowsql' `New York:hitratios:2:85:95'
 
-    Notice that the exact spelling is relevant here. Case is
-    checked, as well as spaces. In fact, any characters between the
-    colons matter.
+    Notice that the exact spelling is relevant here. Case is checked, as
+    well as spaces. In fact, any characters between the colons matter.
 
     For more information on configuring services, see the services
     documentation
@@ -100,35 +97,32 @@ Editing the karma.conf using Preference Groups
     .
 
 Email Notification
-    Email notification is an important part of any monitoring app,
-    so I've tried to get this functionality working well in 1.0. At
-    it's most basic form, you add a line in your config file like
-    this:
+    Email notification is an important part of any monitoring app, so I've
+    tried to get this functionality working well in 1.0. At it's most basic
+    form, you add a line in your config file like this:
 
-    `notify_email:full:shull,root,oracle@somewhere.com,nobody@xyz.co
-    m'
+    `notify_email:full:shull,root,oracle@somewhere.com,nobody@xyz.com'
 
-    The first field is obviously the directive. The second can be
-    'full' or 'short'. The 'short' format email is a very limited
-    message suitable for text pagers which often have an 80
-    character limitation. The third field is a comma delimited list
-    of email addresses.
+    The first field is obviously the directive. The second can be 'full' or
+    'short'. The 'short' format email is a very limited message suitable for
+    text pagers which often have an 80 character limitation. The third field
+    is a comma delimited list of email addresses.
 
     Check the various *.conf files in the main directory.
 
 Alertlog and OS monitoring
     Karma has the ability to monitor the alertlog file and some OS
-    statistics of some or all of your target databases. This is a
-    some what labor intensive task that the dba must perform
-    regularly and my goal here is to simplify this task.
+    statistics of some or all of your target databases. This is a some what
+    labor intensive task that the dba must perform regularly and my goal
+    here is to simplify this task.
 
     If you're going to monitor the alertlog you must create the
-    KARMA_ALERTLOG_ERRORS table, and if you are going to monitor OS
-    stats, you must create the KARMA_OS_STATS table. For monitoring
-    either, you must startup the karmagentd daemon.
+    KARMA_ALERTLOG_ERRORS table, and if you are going to monitor OS stats,
+    you must create the KARMA_OS_STATS table. For monitoring either, you
+    must startup the karmagentd daemon.
 
-    Install the tables in your karma schema first. Login as the
-    karma user created above
+    Install the tables in your karma schema first. Login as the karma user
+    created above
 
     (see user creation section)
 
@@ -144,65 +138,61 @@ Alertlog and OS monitoring
 
     Table created.
 
-    Monitoring is achieved via the karmagentd daemon. This daemon
-    must be run on *each* target database. This is necessary because
-    the alertlog is an OS logfile, which is only accessable locally
-    on the machine. Karmagentd reads the alertlog and keeps track of
-    it's file position, periodically waking up to check for changes.
-    In addition, it will run "uptime" on that machine as well. When
-    it finds any ORA-xxx errors in the alert log, it writes them to
-    KARMA_ALERTLOG_ERRORS, and KARMA_OS_STATS respectively.
+    Monitoring is achieved via the karmagentd daemon. This daemon must be
+    run on *each* target database. This is necessary because the alertlog is
+    an OS logfile, which is only accessable locally on the machine.
+    Karmagentd reads the alertlog and keeps track of it's file position,
+    periodically waking up to check for changes. In addition, it will run
+    "uptime" on that machine as well. When it finds any ORA-xxx errors in
+    the alert log, it writes them to KARMA_ALERTLOG_ERRORS, and
+    KARMA_OS_STATS respectively.
 
     For more help with the karmagentd daemon, use the `-h' option:
 
-    `$ ./karmagentd -h'
+    `$ ./karmagentd `-h''
 
-    `h - print this help info' `f - fequency in minutes to wakeup &
-    check things (default 1)' `r - reset the alert.log, and truncate
-    it's table' `u - user to login as (default karma)' `p - oracle
-    login password (otherwise you're prompted)' `j - jump j bytes in
-    file (takes precedence over save file)' `t - tnsname of the
-    database to watch (default local)' `a - specify alert.log file
-    (default OFA)' `k - use this file to store seek position' `b -
-    specify ORACLE_BASE (takes precedence over env)' `h - specify
-    ORACLE_HOME (takes precedence over env)' `s - specify ORACLE_SID
-    (takes precedence over env' `d - debug level (default 0, no
+    `h - print this help info' `f - fequency in minutes to wakeup & check
+    things (default 1)' `r - reset the alert.log, and truncate it's table'
+    `u - user to login as (default karma)' `p - oracle login password
+    (otherwise you're prompted)' `j - jump j bytes in file (takes precedence
+    over save file)' `t - tnsname of the database to watch (default local)'
+    `a - specify alert.log file (default OFA)' `k - use this file to store
+    seek position' `b - specify ORACLE_BASE (takes precedence over env)' `h
+    - specify ORACLE_HOME (takes precedence over env)' `s - specify
+    ORACLE_SID (takes precedence over env' `d - debug level (default 0, no
     debugging)'
 
-    `./karmagentd [-h'] [-f #] [-r] [-u karma] [-p pass] [-j #] ` [-
-    t' DB]<br [`-a' alert.log] [`-k' karmagent.sav]> ` [-b'
-    ORACLE_BASE] [`-h' ORACLE_HOME] [`-s' ORACLE_SID] [-d #]
+    `./karmagentd [`-h'] [-f #] [-r] [-u karma] [-p pass] [-j #]' ` [`-t'
+    DB]<br' [`-a' alert.log] [`-k' karmagent.sav]> ` [`-b' ORACLE_BASE]
+    [`-h' ORACLE_HOME] [`-s' ORACLE_SID] [-d #]'
 
 Using the karmactl utility
-    The karmactl utility is a new addition to karma, and enables you
-    to more easily manage a running karma daemon. You can use it to
-    stop or start the daemon, get status on a running daemon, reread
-    the config file or force a refresh of all services.
+    The karmactl utility is a new addition to karma, and enables you to more
+    easily manage a running karma daemon. You can use it to stop or start
+    the daemon, get status on a running daemon, reread the config file or
+    force a refresh of all services.
 
     To get help do `$ perldoc karmactl' or the following:
 
-    `$ bin/karmactl -h'
+    `$ bin/karmactl `-h''
 
-    `-h print help and exit' `-v print version and exit' `-w print
-    warranty and exit' `-s start karmad daemon' `-p stop karmad
-    daemon' `-t print status of running karmad daemon' `-r reload
-    karam.conf config file' `-i specify process id (if lock file is
-    missing)' `-l specify logfile for karmad (ignored if not
-    starting karmad)' `-c specify karma config file (ignored if not
-    starting karmad)' `-k specify karma doc_root' `-d delete
+    `-h print help and exit' `-v print version and exit' `-w print warranty
+    and exit' `-s start karmad daemon' `-p stop karmad daemon' `-t print
+    status of running karmad daemon' `-r reload karam.conf config file' `-i
+    specify process id (if lock file is missing)' `-l specify logfile for
+    karmad (ignored if not starting karmad)' `-c specify karma config file
+    (ignored if not starting karmad)' `-k specify karma doc_root' `-d delete
     dynamically created karma files (karma.html, info/*.html)'
 
-    `karmactl [-h'|`-v'|-w|-s|-p|-t|-r|-d] [-l file] [-c file] [-k
-    dir]
+    `karmactl [`-h'|`-v'|-w|-s|-p|-t|-r|-d] [-l file] [-c file] [-k dir]'
 
     Get the status of a running karma daemon as follows:
 
     `$ bin/karmactl -s' Starting karma daemon...
 
-    `$ bin/karmactl -t' karmad started at 19:46 pid:2853 Using EMAIL
-    for notification DB:AEON UP, Prefgroup:default - services: 19:46
-    -- os 19:46 -- mts 19:46 OK tablespace 19:46 OK slowsql 19:46 OK
-    up 19:46 WARN hitratios 19:46 OK rollback 19:46 -- alertlog
-    19:46 OK extents 19:46 OK latch 19:46 OK redolog 19:46 OK
-    fragmentation
+    `$ bin/karmactl -t' karmad started at 19:46 pid:2853 Using EMAIL for
+    notification DB:AEON UP, Prefgroup:default - services: 19:46 -- os 19:46
+    -- mts 19:46 OK tablespace 19:46 OK slowsql 19:46 OK up 19:46 WARN
+    hitratios 19:46 OK rollback 19:46 -- alertlog 19:46 OK extents 19:46 OK
+    latch 19:46 OK redolog 19:46 OK fragmentation
 

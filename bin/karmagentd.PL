@@ -69,6 +69,8 @@ sub dbConnect ();
 use Getopt::Std;
 use karma;
 use strict;
+use Term::ReadKey;
+
 
 BEGIN {
     unless (eval "require DBI") {
@@ -157,7 +159,22 @@ if (defined $main::opt_t) {
 #
 # default to the OFA location
 #
+#print ("BEFORE USE OF UNINIT VALUE...\n");
+#print ("PATH_DELIM: $main::PATH_DELIM\n");
+#print ("ORACLE_HOME: $ENV{ORACLE_HOME}\n");
+#print ("ORACLE_BASE: $ENV{ORACLE_BASE}\n");
+#print ("ORACLE_SID: $ENV{ORACLE_SID}\n");
+
+$main::ALERTLOG_FILE = undef;
 $main::ALERTLOG_FILE = "$ENV{ORACLE_BASE}$main::PATH_DELIM" . 'admin' . "$main::PATH_DELIM$ENV{ORACLE_SID}" . "$main::PATH_DELIM" . 'bdump' . "$main::PATH_DELIM" . "alert_$ENV{ORACLE_SID}.log";
+
+if ($main::WINDOWS == 0) {
+    $main::wd = `/bin/pwd`;
+} else {
+    $main::wd = Win32::GetCwd ();
+}
+chomp $main::wd;
+
 if (defined $main::opt_a) {
     if ($main::WINDOWS == 1) {
 	if ($main::opt_l =~ /^\w:/) {
@@ -183,8 +200,15 @@ if (defined $main::opt_p) {
     $main::PASS = $ENV{DBI_PASS};
 } else {
     print ('Password: ');
-    $main::PASS = <STDIN>;
-    chomp ($main::PASS);
+
+    # read password new way, without echo
+    ReadMode ('noecho');
+    $main::PASS = ReadLine(0);
+    ReadMode ('normal');
+    print ("\n");
+
+#    $main::PASS = <STDIN>;
+#    chomp ($main::PASS);
 }
 
 $main::USER = 'karma';
@@ -325,7 +349,8 @@ $main::uptimeStatement =
     'INSERT INTO karma_os_stats VALUES (sysdate, ?, ?, ?, 0)';
 $main::alertlogStatement =
     'INSERT INTO karma_alertlog_errors VALUES (sysdate, ?, ?, ?)';
-
+$main::agentStatement = 
+    'UPDATE karma_agent SET timestamp = SYSDATE, frequency = ? WHERE id = \'LASTUPDATE\'';
 
 #
 # database handle
@@ -337,13 +362,20 @@ $main::uptimeSth = undef;
 $main::alertlogSth = undef;
 
 #$main::dbh = DBI->connect ("DBI:Oracle:$main::TNS", $main::USER, $main::PASS);
+#print ("before first dbConnect\n");
 dbConnect ();
 
 
 if (defined $main::dbh) {
-    logMessage ("Successfully connected to $main::USER\@$main::TNS...\n");
+    # logfile isn't open yet...
+    # only visible with debug options on...
+    #logMessage ("Successfully connected to $main::USER\@$main::TNS...\n");
+    print ("Successfully connected to $main::USER\@$main::TNS...\n");
 } else {
-    logMessage ("Failed to connect to $main::USER\@$main::TNS - Exiting.\n");
+    # logfile isn't open yet
+    print ("Failed to connect to $main::USER\@$main::TNS - Exiting.\n");
+    #logMessage ("Failed to connect to $main::USER\@$main::TNS - Exiting.\n");
+    exit 1;
 }
 
 
@@ -388,7 +420,7 @@ while (1) {
 	debugMessage ("INSERTING OS VALUES: $main::uptimes[0], $main::uptimes[1], $main::uptimes[2]\n", 2);
 	$main::uptimeSth->execute ($main::uptimes[0], $main::uptimes[1], $main::uptimes[2]);
 
-
+	updateKarmaAgent ();
 	checkAlertFile ();
 
 	debugMessage ("Sleeping for $FREQUENCY seconds...\n", 1);
@@ -406,6 +438,24 @@ while (1) {
 #--------------------------------------------------------------
 
 
+#-----------------------------------------------------------------------
+#
+#
+#
+#-----------------------------------------------------------------------
+sub updateKarmaAgent () {
+
+    if (defined $main::dbh) {
+    
+	my $freq = $FREQUENCY/60;
+	my $sth = $main::dbh->prepare ($main::agentStatement);
+	
+	if (defined $sth) {
+	    my $rv = $sth->execute ($freq);
+	    $sth->finish;
+	}
+    }
+}
 
 #-----------------------------------------------------------------------
 #
@@ -579,20 +629,27 @@ sub catchTerm {
 sub dbConnect () {
     $main::dbh = undef;
     $main::dbh = DBI->connect ("DBI:Oracle:$main::TNS", $main::USER, $main::PASS);
-    
-    #
-    # prepare the statements
-    #
-    $main::uptimeSth = undef;
-    $main::uptimeSth = $main::dbh->prepare ($main::uptimeStatement);
+
+#    print ("inside dbConnect\n");
     if (defined $DBI::errstr) {
-	logMessageWTime ("doConnect uptime prepare - $DBI::errstr\n");
+	print ("ERROR: $DBI::errstr\n");
     }
 
-    $main::alertlogSth = undef;
-    $main::alertlogSth = $main::dbh->prepare ($main::alertlogStatement);
-    if (defined $DBI::errstr) {
-	logMessageWTime ("dbConnect alertlog prepare - $DBI::errstr\n");
+    if (defined $main::dbh) {
+	#
+	# prepare the statements
+	#
+	$main::uptimeSth = undef;
+	$main::uptimeSth = $main::dbh->prepare ($main::uptimeStatement);
+	if (defined $DBI::errstr) {
+	    logMessageWTime ("doConnect uptime prepare - $DBI::errstr\n");
+	}
+	
+	$main::alertlogSth = undef;
+	$main::alertlogSth = $main::dbh->prepare ($main::alertlogStatement);
+	if (defined $DBI::errstr) {
+	    logMessageWTime ("dbConnect alertlog prepare - $DBI::errstr\n");
+	}
     }
 }
 

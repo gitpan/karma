@@ -305,14 +305,14 @@ if ($main::opt_k) {
     }
 }
 
-if (not (-e $main::KARMA_DOC_ROOT) ||
-    not (-d $main::KARMA_DOC_ROOT) ||
-    not (-w $main::KARMA_DOC_ROOT)) {
+#if (not (-e $main::KARMA_DOC_ROOT) ||
+#    not (-d $main::KARMA_DOC_ROOT) ||
+#    not (-w $main::KARMA_DOC_ROOT)) {
 
-    print ("Please make sure that doc_root \"$main::KARMA_DOC_ROOT\" is a directory and\n");
-    print ("that it is writable.\n");
-    exit 1;
-}
+#    print ("Please make sure that doc_root \"$main::KARMA_DOC_ROOT\" is a directory and\n");
+#    print ("that it is writable.\n");
+#    exit 1;
+#}
 
 #@main::test_array = (["Status", "Name", "Value"], 
 #	       [$main::cOK_STATUS, "Aeon", "25"],
@@ -586,7 +586,7 @@ ORDER BY start_time";
 # more info file extentsions... actual filename will be
 # dbname.$REDOLOG_FILE for example.
 #
-$main::INDEX_FILE_NAME = "$main::KARMA_DOC_ROOT$main::PATH_DELIM" . 'karma.html';
+#$main::INDEX_FILE_NAME = "$main::KARMA_DOC_ROOT$main::PATH_DELIM" . 'karma.html';
 
 $main::files{info}{redolog}       = 'redolog.html';
 $main::files{info}{rollback}      = 'rollback.html';
@@ -860,6 +860,12 @@ $main::USE_DBI_VARS = 0;
 # conf file specified on the command line
 #
 if ((defined ($main::opt_c)) &&
+    ($main::opt_c =~ /^\//)) {
+
+    $main::CONF_FILE_NAME = $main::opt_c;
+    logMessage ("Using config file: $main::CONF_FILE_NAME \n");
+
+} elsif ((defined ($main::opt_c)) &&
     (-f "$main::KARMA_HOME$main::PATH_DELIM$main::opt_c") &&
     (-r "$main::KARMA_HOME$main::PATH_DELIM$main::opt_c")) {
 
@@ -926,7 +932,7 @@ if ((defined ($main::opt_c)) &&
 	"The karma.conf configuration file was not found.\n",
 	"Please make sure the file $main::KARMA_HOME$main::PATH_DELIM", 
 	'karma.conf', ",\n",
-	"$main::PATH_DELIM", 'etc', "$main::PATH_DELIM", 'karma.conf',
+	"$main::PATH_DELIM", 'etc', "$main::PATH_DELIM", "karma.conf\n",
 	"exists and is readable, otherwise\n",
 	"specify another file with -c. \n";
     exit 1;
@@ -963,6 +969,25 @@ if ($main::USE_DBI_VARS == 1) {
 #    print ("read config\n");
     readConfig ($main::CONF_FILE_NAME);
 }
+
+#
+# now that we've checked the config file, make sure DOC_ROOT is set
+# otherwise we exit...
+#
+if (not (-e $main::KARMA_DOC_ROOT) ||
+    not (-d $main::KARMA_DOC_ROOT) ||
+    not (-w $main::KARMA_DOC_ROOT)) {
+
+    print ("Please make sure that doc_root \"$main::KARMA_DOC_ROOT\" is a directory and\n");
+    print ("that it is writable.\n");
+    exit 1;
+}
+
+#
+# more info file extentsions... actual filename will be
+# dbname.$REDOLOG_FILE for example.
+#
+$main::INDEX_FILE_NAME = "$main::KARMA_DOC_ROOT$main::PATH_DELIM" . 'karma.html';
 
 #show_pref_groups ();
 #show_notify_config ();
@@ -2000,67 +2025,115 @@ sub getAlertlogStatus ($$$) {
 	    if ($sth) {
 		$sth->finish;
 	    }
+
+
+	    $sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->
+		prepare ('SELECT to_char(timestamp, \'J\'), to_char(timestamp, \'SSSSS\'), frequency FROM karma_agent');
+	    $rv = $sth->execute;
+	    $row_ref = $sth->fetchrow_arrayref;
+	    my $notRunning = undef;
+	    my $alert_days = undef;
+	    my $alert_seconds = undef;
+	    my $alert_frequency = undef;
+	    if (defined $row_ref) {
+		$alert_days = $row_ref->[0];
+		$alert_seconds = $row_ref->[1] + ($alert_days * 86400);
+		$alert_frequency = $row_ref->[2] * 60;
+	    }
+	    $sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->
+		prepare ('SELECT to_char(sysdate, \'J\'), to_char(sysdate, \'SSSSS\') FROM dual');
+	    $rv = $sth->execute;
+	    $row_ref = $sth->fetchrow_arrayref;
+	    my $curr_days = undef;
+	    my $curr_seconds = undef;
+	    if (defined $row_ref) {
+		$curr_days = $row_ref->[0];
+		$curr_seconds = $row_ref->[1] + ($curr_days * 86400);
+	    }
+
+	    if (($curr_seconds - $alert_frequency) > $alert_seconds) {
+		$notRunning = 1;
+	    }
+
+	    if (defined $notRunning) {
+
+		@{$alertlogTableRef->[$alertlogRowCount]} = 
+		    ($main::cALERT_STATUS, 
+		     'KAR',
+		     $alert_frequency,
+		     $alert_seconds,
+		     'karmagentd does not seem to be running.');
+
+	    } else {
 	    
 #	$sth = $dbh{$inTNS}->prepare ($main::statements{alertlog});
-	    $sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare ($main::statements{alertlog});
-	    
-	    if (defined $DBI::errstr)  {
-		logMessageWTime ("getAlertlogStatus: prepare - $DBI::errstr\n");
-	    }
-	
-	    if (defined $sth) {
-		$rv = $sth->execute;
+		$sth = $main::db_info{$inTNS}[$main::cDB_HANDLE]->prepare ($main::statements{alertlog});
 		
-		$currStatus = $main::cOK_STATUS;
-		$alertlogStatus = $main::cOK_STATUS;
+		if (defined $DBI::errstr)  {
+		    logMessageWTime ("getAlertlogStatus: prepare - $DBI::errstr\n");
+		}
 		
-#	$alertlogRowCount = 1;
-		$curr_row = $sth->fetchrow_arrayref;
-		
-		
-		while (defined ($curr_row->[0])) {
+		if (defined $sth) {
+		    $rv = $sth->execute;
 		    
 		    $currStatus = $main::cOK_STATUS;
+		    $alertlogStatus = $main::cOK_STATUS;
 		    
-		    
-		    if (($curr_row->[0] =~ /ORA/) && 
-			(($curr_row->[1] == 600) || ($curr_row->[1] == 7445))) {
-			$currStatus = $main::cALERT_STATUS;
-		    } else {
-			$currStatus = $main::cWARNING_STATUS;
-		    }
-		    
-		    # 
-		    # escalate warning/alert level if necessary
-		    #
-		    if (($alertlogStatus == $main::cNO_STATUS) || 
-			($alertlogStatus == $main::cOK_STATUS) ||
-			($currStatus == $main::cALERT_STATUS)) {
-			$alertlogStatus = $currStatus;
-		    } elsif (($currStatus == $main::cALERT_STATUS) &&
-			     ($alertlogStatus == $main::cWARNING_STATUS)) {
-			$alertlogStatus = $currStatus;
-		    }
-		    
-		    
-		    @{$alertlogTableRef->[$alertlogRowCount]} = 
-			($currStatus, 
-			 $curr_row->[0],
-			 $curr_row->[1],
-			 $curr_row->[2],
-			 $curr_row->[3]);
-		    
-		    $alertlogRowCount++;
+#	$alertlogRowCount = 1;
 		    $curr_row = $sth->fetchrow_arrayref;
 		    
 		    
+		    while (defined ($curr_row->[0])) {
+			
+			$currStatus = $main::cOK_STATUS;
+			
+			
+			if (($curr_row->[0] =~ /ORA/) && 
+			    (($curr_row->[1] == 600) || ($curr_row->[1] == 7445))) {
+			    $currStatus = $main::cALERT_STATUS;
+			} else {
+			    $currStatus = $main::cWARNING_STATUS;
+			}
+			
+			# 
+			# escalate warning/alert level if necessary
+			#
+			if (($alertlogStatus == $main::cNO_STATUS) || 
+			    ($alertlogStatus == $main::cOK_STATUS) ||
+			    ($currStatus == $main::cALERT_STATUS)) {
+			    $alertlogStatus = $currStatus;
+			} elsif (($currStatus == $main::cALERT_STATUS) &&
+				 ($alertlogStatus == $main::cWARNING_STATUS)) {
+			    $alertlogStatus = $currStatus;
+			}
+			
+			
+			@{$alertlogTableRef->[$alertlogRowCount]} = 
+			    ($currStatus, 
+			     $curr_row->[0],
+			     $curr_row->[1],
+			     $curr_row->[2],
+			     $curr_row->[3]);
+			
+			$alertlogRowCount++;
+			$curr_row = $sth->fetchrow_arrayref;
+			
+			
+		    }
+		    
 		}
 		
+		if ($sth) {
+		    $sth->finish;
+		}
 	    }
-	    
-	    if ($sth) {
-		$sth->finish;
-	    }
+	} else {
+	    @{$alertlogTableRef->[$alertlogRowCount]} = 
+		($main::cNO_STATUS, 
+		 'KAR',
+		 '0',
+		 '0',
+		 'karma_alertlog_errors table not created.');
 	}
     }
 
@@ -2828,20 +2901,23 @@ sub getExtentsStatus ($$$) {
 
 
 	my $extents_row = $sth->fetchrow_arrayref;
+	my $num_extents = $extents_row->[2];
+	my $max_extents = $extents_row->[1];
+
 	while (defined ($extents_row->[0])) {
 	    
 	    #
 	    # looks like we're at alert status...
 	    #
-	    if ($extents_row->[2] ==
-		($extents_row->[1] - $extents_threshold_alert)) {
+	    if ($num_extents >=
+		($max_extents - $extents_threshold_alert)) {
 		$currStatus = $main::cALERT_STATUS;
 		
 		#
 		# warn status... don't set if we're already at main::cALERT_STATUS
 		#
-	    } elsif ($extents_row->[2] == 
-		     ($extents_row->[1] - $extents_threshold_warn)) {
+	    } elsif ($num_extents >= 
+		     ($max_extents - $extents_threshold_warn)) {
 		$currStatus = $main::cWARNING_STATUS;
 		
 		# 
@@ -2870,8 +2946,8 @@ sub getExtentsStatus ($$$) {
 		    ($currStatus, 
 		     $extents_row->[0],
 		     $extents_row->[3],
-		     $extents_row->[2],
-		     $extents_row->[1]);
+		     $num_extents,
+		     $max_extents);
 		
 		
 		$extentsRowCount++;
@@ -3296,6 +3372,9 @@ sub readConfig ($) {
 		    ($curr_array[1] =~ /^1$/i)) {
 		    $main::USE_PREFGROUP_SECTIONS=1;
 		}
+
+	    } elsif ($curr_array[0] =~ /^doc_root$/i) {
+		    $main::KARMA_DOC_ROOT=$curr_array[1];
 
 	    } else {
 		
@@ -3750,6 +3829,7 @@ sub showInfoHead ($$) {
     
     print $main::info_file ("<body bgcolor=\"$main::cINFO_BG_COLOR\">\n");
     
+
     print $main::info_file ("<table width=\"100\%\" border=\"0\" height=\"300\" cellpadding=\"5\" cellspacing=\"0\" bordercolordark=\"$main::cBORD_COL_DARK\" bordercolor=\"$main::cBORDER_COLOR\" >\n");
 
 
@@ -3765,7 +3845,15 @@ sub showInfoHead ($$) {
     print $main::info_file ("width=\"$main::cHEAD_HEIGHT\" height=\"$main::cHEAD_HEIGHT\" align=\"right\"></th>\n");
     print $main::info_file ("</tr>\n");
     
-#    print $main::info_file ("<tr bgcolor=\"$main::cBODY_BG_COLOR\">\n"); 
+
+    # 
+    # print warn, and alert threshold values
+    #
+    print $main::info_file ("<tr><td>\n");
+    showWarnAlert ($inTNS, $inType);
+    print $main::info_file ("</td></tr>\n");
+
+
     print $main::info_file ("<tr bgcolor=\"$main::cINFO_BG_COLOR\">\n"); 
 
     print $main::info_file ("<td colspan=\"3\" height=\"150\" width=\"0\">\n"); 
@@ -5124,6 +5212,50 @@ sub debugDataSources ($) {
 	debugMessage ("No valid Data Sources, perhaps ORACLE_HOME is not set.\n", $inLevel);
     }
 }
+
+#-----------------------------------------------------------------------
+#
+# 
+# 
+#-----------------------------------------------------------------------
+sub showWarnAlert ($$) {
+    my ($inTNS, $inService) = @_;
+
+    my $prefGroup = getPrefGroup ($inTNS);
+    my $serviceWarn = getServiceWarn ($prefGroup, $inService);
+    my $serviceAlert = getServiceAlert ($prefGroup, $inService);
+
+    my $warnImage = undef;
+    my $alertImage = undef;
+
+    if ($main::USE_BLINK_ALERT == 1) {
+	$alertImage = 'blink_red_status.gif';
+    } else {
+	$alertImage = 'red_dia.jpg';
+    }
+
+    if ($main::USE_BLINK_WARNING == 1) {
+	$warnImage = 'blink_yellow_status.gif';
+    } else {
+	$warnImage = 'yellow_dia.jpg';
+    }
+
+    print $main::info_file ("<table>\n");
+    print $main::info_file ("<tr>\n");
+    print $main::info_file ("<td><img src=\"../images/$warnImage\"></td>\n");
+    print $main::info_file ("<td>warning</td>\n");
+    print $main::info_file ("<td>$serviceWarn</td>\n");
+    print $main::info_file ("</tr>\n");
+
+    print $main::info_file ("<tr>\n");
+    print $main::info_file ("<td><img src=\"../images/$alertImage\"></td>\n");
+    print $main::info_file ("<td>alert</td>\n");
+    print $main::info_file ("<td>$serviceAlert</td>\n");
+    print $main::info_file ("</tr>\n");
+
+    print $main::info_file ("</table>\n");
+}
+
 
 #-----------------------------------------------------------------------
 #

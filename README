@@ -2,22 +2,20 @@ NAME
     Karma - Readme
 
 DESCRIPTION
-    To get started with karma, first edit a config file. For
-    starters, use the basic.conf file. Edit it for the databases
-    you'd like to connect to.
+    To get started with karma, first edit a config file. For starters, use
+    the basic.conf file. Edit it for the databases you'd like to connect to.
 
-    Next set the $KARMA_HOME environment variable. This specifies
-    where karma will look for the karma.conf file (otherwise it will
-    look in the current directory). Also, karma will store the
-    .karma.pid, and .karmafifo files here.
+    Next set the $KARMA_HOME environment variable. This specifies where
+    karma will look for the karma.conf file (otherwise it will look in the
+    current directory). Also, karma will store the .karma.pid, and
+    .karmafifo files here.
 
-    Next start karmad running. You can use the -h option for help,
-    or just start it like this:
+    Next start karmad running. You can use the -h option for help, or just
+    start it like this:
 
     `$ bin/karmactl -s'
 karmactl
-    start, stop, and query a running karmad daemon. use -h option
-    for help
+    start, stop, and query a running karmad daemon. use -h option for help
 
 karmad
     main karma utility. You probably won't run this directly.
@@ -26,16 +24,14 @@ karma.pm
     common code for karmad, karmactl, and karmagentd.
 
 karmagentd
-    Run this on each target machine for which you want to monitor
-    the alert.log and OS stats.
+    Run this on each target machine for which you want to monitor the
+    alert.log and OS stats.
 
 basic.conf
-    This is the simplest of karma config files. Edit it to get
-    started.
+    This is the simplest of karma config files. Edit it to get started.
 
 prefgroups.conf
-    This config file demonstrates how to use preference groups with
-    karma.
+    This config file demonstrates how to use preference groups with karma.
 
 karma.conf
     A well documented fully featured karma config file.
@@ -47,24 +43,24 @@ doc_root/help
     directory containing static html help files
 
 doc_root/info
-    directory which will contain more info files, giving information
-    about the particular statistic, and it's status.
+    directory which will contain more info files, giving information about
+    the particular statistic, and it's status.
 
 doc_root/docs
     Online html documentation for karma.
 
 sql/karma_user.sql
-    auxillary sql script for creating a special read-only "karma"
-    user to run the tool as.
+    auxillary sql script for creating a special read-only "karma" user to
+    run the tool as.
 
 sql/karma_objs.sql
     auxillary sql script for creating additional objects
-    KARMA_ALERTLOG_ERRORS, and KARMA_OS_STATS for collecting info on
-    the database server
+    KARMA_ALERTLOG_ERRORS, and KARMA_OS_STATS for collecting info on the
+    database server
 
 doc_root
-    This is the document root where your html files will be
-    generated. If you're going to use karma with a webserver, put
-    this in your web doc_root, perhaps naming it karma. Use the -k
-    option to karmactl to specify it's location.
+    This is the document root where your html files will be generated. If
+    you're going to use karma with a webserver, put this in your web
+    doc_root, perhaps naming it karma. Use the -k option to karmactl to
+    specify it's location.
 

@@ -3,88 +3,81 @@ NAME
 
 DESCRIPTION
     An Oracle DBA has many responsibilities and day-to-day tasks to
-    complete. Karma was developed with the idea that many of these
-    tasks can be automated, thus freeing time for other useful work.
-    This presentation will discuss setup and configuration of Karma
-    to provide you with a simple web-interface for monitoring an
-    unlimited number of Oracle databases.
+    complete. Karma was developed with the idea that many of these tasks can
+    be automated, thus freeing time for other useful work. This presentation
+    will discuss setup and configuration of Karma to provide you with a
+    simple web-interface for monitoring an unlimited number of Oracle
+    databases.
 
 Introduction
-    In the course of being an Oracle DBA, one is confronted with
-    many varied tasks. Some of them are mundane and repetitive,
-    while others require thinking, and debugging. Karma was
-    developed with the idea of eliminating many of the day-to-day
-    mundane and repetitive tasks so a DBA can be left to spend time
-    more wisely.
+    In the course of being an Oracle DBA, one is confronted with many varied
+    tasks. Some of them are mundane and repetitive, while others require
+    thinking, and debugging. Karma was developed with the idea of
+    eliminating many of the day-to-day mundane and repetitive tasks so a DBA
+    can be left to spend time more wisely.
 
-    You'll find Karma is quite useful especially when you need to
-    keep a watchful eye on many databases, as it can monitor a lot
-    of important Oracle vital signs like latch contention, hit
-    ratios, tablespace quotas, max extents, redo log switching,
-    rollback segment contention, fragmentation, slow sql queries,
-    alert log errors, and replication's deferred transaction, and
-    error queues. In addition, Karma can be configured to send email
-    on warning or alert conditions, even notifying you by
-    alphanumeric pager if necessary. In short, Karma can help you be
+    You'll find Karma is quite useful especially when you need to keep a
+    watchful eye on many databases, as it can monitor a lot of important
+    Oracle vital signs like latch contention, hit ratios, tablespace quotas,
+    max extents, redo log switching, rollback segment contention,
+    fragmentation, slow sql queries, alert log errors, and replication's
+    deferred transaction, and error queues. In addition, Karma can be
+    configured to send email on warning or alert conditions, even notifying
+    you by alphanumeric pager if necessary. In short, Karma can help you be
     more proactive with respect to the databases you manage.
 
 What it does and how
-    Karma is a web-based application, however, it has some very
-    important differences from a normal CGI based application. First
-    a little bit of background.
+    Karma is a web-based application, however, it has some very important
+    differences from a normal CGI based application. First a little bit of
+    background.
 
-    With a CGI, generally, requesting a given url is actually a
-    request to apache to run a certain program. In the case of a
-    database application, it would connect to the database, perform
-    some function, disconnect, and return an HTML page based on the
-    results of the database requests. This is how dynamic web
-    content is created on the web. A lot of improvement over this
-    has occured since it's beginnings, like mod_perl, an apache
-    module which caches your code, as well as the database
-    connections, making them persistent. All in all, these changes
-    provided dramatic improvement over earlier non-cached solutions,
-    but still present some problems for a database monitor.
+    With a CGI, generally, requesting a given url is actually a request to
+    apache to run a certain program. In the case of a database application,
+    it would connect to the database, perform some function, disconnect, and
+    return an HTML page based on the results of the database requests. This
+    is how dynamic web content is created on the web. A lot of improvement
+    over this has occured since it's beginnings, like mod_perl, an apache
+    module which caches your code, as well as the database connections,
+    making them persistent. All in all, these changes provided dramatic
+    improvement over earlier non-cached solutions, but still present some
+    problems for a database monitor.
 
-    In the case of Karma, this traditional scheme posed some
-    problems. Besides the fact that CGI applications, if not written
-    very cleanly, can pose some security risk, they also constitute
-    a hit each time they are called. If many users wanted to keep an
-    eye on the databases monitored each time they loaded the karma
-    main page, they would be hitting the database. What's more
-    there'd be no way to provide email notification in such a
-    scheme. There'd be no program running until the user initiated
-    in from the browser.
+    In the case of Karma, this traditional scheme posed some problems.
+    Besides the fact that CGI applications, if not written very cleanly, can
+    pose some security risk, they also constitute a hit each time they are
+    called. If many users wanted to keep an eye on the databases monitored
+    each time they loaded the karma main page, they would be hitting the
+    database. What's more there'd be no way to provide email notification in
+    such a scheme. There'd be no program running until the user initiated in
+    from the browser.
 
-    For these reasons I decided NOT to make this application a
-    simple CGI. Instead, I built it as a unix daemon. It is started
-    once, and kept running in the background until explicitely told
-    to quit. While running, it wakes up periodically, checks up on
-    the database, generates the relevant HTML pages, and if
-    necessary, sends out email notification of any warning or alert
-    conditions. That's it, it then happily goes back to sleep.
+    For these reasons I decided NOT to make this application a simple CGI.
+    Instead, I built it as a unix daemon. It is started once, and kept
+    running in the background until explicitely told to quit. While running,
+    it wakes up periodically, checks up on the database, generates the
+    relevant HTML pages, and if necessary, sends out email notification of
+    any warning or alert conditions. That's it, it then happily goes back to
+    sleep.
 
-    The HTML pages that are generated are static, so no matter how
-    often you load them in your browser, you DO NOT hit the database
-    at all. It's like magic! The real beauty is in the refresh tag.
-    The main HTML page includes a tag which tells the browser to
-    every so often reload the page. This is set to match the wakeup
-    time of Karma, so when a new page is generated, the browser will
-    just make a new request.
+    The HTML pages that are generated are static, so no matter how often you
+    load them in your browser, you DO NOT hit the database at all. It's like
+    magic! The real beauty is in the refresh tag. The main HTML page
+    includes a tag which tells the browser to every so often reload the
+    page. This is set to match the wakeup time of Karma, so when a new page
+    is generated, the browser will just make a new request.
 
 Installation
-    Honestly, it's not all bad. First you'll need Oracle installed
-    of course. Not for the database you'll be monitoring, but you'll
-    need to install the client software to get the Perl DBD-Oracle
-    module to work. In fact, you'll need a bit more than just the
-    client software as DBD-Oracle is a compile C program, using the
-    OCI Oracle library to access the database. Include the Pro*C,
-    and database itself when you install to be sure you get
-    everything DBD-Oracle needs to compile. You can delete much of
-    it later.
+    Honestly, it's not all bad. First you'll need Oracle installed of
+    course. Not for the database you'll be monitoring, but you'll need to
+    install the client software to get the Perl DBD-Oracle module to work.
+    In fact, you'll need a bit more than just the client software as
+    DBD-Oracle is a compile C program, using the OCI Oracle library to
+    access the database. Include the Pro*C, and database itself when you
+    install to be sure you get everything DBD-Oracle needs to compile. You
+    can delete much of it later.
 
-    To install a Perl module, you need only (1) uncompress and
-    untar, (2) generate the makefile, (3) make test, and finally (4)
-    install.
+    To install a Perl module, you need only (1) uncompress and untar, (2)
+    generate the makefile, (3) make test, and finally (4) install.
 
     `$ gunzip < DBI-1.03.tar.gz | tar xvf -'
 
@@ -101,14 +94,13 @@ Installation
     You'll follow the same steps to install DBD-Oracle.
 
     After that, you'll be ready to do the same for Karma. It's got a
-    standard perl installer, with a Makefile.PL so you can follow
-    the same steps above to install.
+    standard perl installer, with a Makefile.PL so you can follow the same
+    steps above to install.
 
 Configuration and Setup
-    Get started quickly by editing the basic.conf file. The
-    following gives a rough example. The first line simply specifies
-    the database to connect to. Use one for each database you'd like
-    to monitor. The fields are:
+    Get started quickly by editing the basic.conf file. The following gives
+    a rough example. The first line simply specifies the database to connect
+    to. Use one for each database you'd like to monitor. The fields are:
 
     <1>:<2>:<3>:<4>:<5>
 
@@ -122,70 +114,67 @@ Configuration and Setup
 
     5 - password
 
-    Below that you'll find the services you'd like to monitor. These
-    are reserved words, and although case is not important they must
-    be spelled correctly, or they'll be ignored.
+    Below that you'll find the services you'd like to monitor. These are
+    reserved words, and although case is not important they must be spelled
+    correctly, or they'll be ignored.
 
     -- `karma:*:AEON:karma:amrak'
 
-    `redolog' `rollback' `tablespace' `slowsql' `hitratios'
-    `fragmentation' `extents' `latch' --
+    `redolog' `rollback' `tablespace' `slowsql' `hitratios' `fragmentation'
+    `extents' `latch' --
 
     Other features can be enabled such as non-blinking icons, email
-    notification, or preference groups (different monitoring for
-    each group). See other *.conf files for details.
+    notification, or preference groups (different monitoring for each
+    group). See other *.conf files for details.
 
     Finally you'll want to start the daemon:
 
     `$ karmactl -s -c myfile.conf'
 
-    If your config file is karma.conf, and is in the current
-    directory, then you don't have to specify it with `-c'. Use `-h'
-    for help.
+    If your config file is karma.conf, and is in the current directory, then
+    you don't have to specify it with `-c'. Use `-h' for help.
 
 Supported platforms
-    Karma should run on any unix platform which Oracle provides
-    client libs and OCI for. I've confirmed it's working on Linux,
-    Sun Solaris, and DG-UX. As far as NT and other Win32 platforms
-    are concerned, it is working, but with some issues. Essentially,
-    the unix fork () system call is not supported under Win32, as
-    well as various signals. These are all used by karmactl, the
-    assistant utility which can start and stop the daemon. For that
-    reason, for now karma only works by calling the daemon directly
-    on Win32 platforms. Something like this should work:
+    Karma should run on any unix platform which Oracle provides client libs
+    and OCI for. I've confirmed it's working on Linux, Sun Solaris, and
+    DG-UX. As far as NT and other Win32 platforms are concerned, it is
+    working, but with some issues. Essentially, the unix fork () system call
+    is not supported under Win32, as well as various signals. These are all
+    used by karmactl, the assistant utility which can start and stop the
+    daemon. For that reason, for now karma only works by calling the daemon
+    directly on Win32 platforms. Something like this should work:
 
     `$ perl karmad -d 2 -c c:\mydir\karma.conf -k c:\mydir\doc_root'
 
-    Note that `-d' option. This turns debugging on, and cannot be
-    used from the karmactl utility. You may find it useful.
+    Note that `-d' option. This turns debugging on, and cannot be used from
+    the karmactl utility. You may find it useful.
 
 Future Development
-    I have a LOT of great ideas for what I want to do with Karma,
-    but have not had time to get to them all. 2.0 will be coming,
-    that is, once 1.0 is out! Here are some of the ideas I have so
-    far:
+    I have a LOT of great ideas for what I want to do with Karma, but have
+    not had time to get to them all. 2.0 will be coming, that is, once 1.0
+    is out! Here are some of the ideas I have so far:
 
     o lynx browser support (no frames, no tables?)
     o configuration check tool (reads karma.conf file)
     o web interface
     o help page for adding new services
     o more services monitored
-    - hitratios dictcache, rowcache
-    - listener log monitor
-    - trace/core file monitor
-    - monitor sqlnet performance
-    - archive dest directory
-    - backup success
-    - buffer busy waits
-    - locks
+        - hitratios dictcache, rowcache
+        - listener log monitor
+        - trace/core file monitor
+        - monitor sqlnet performance
+        - archive dest directory
+        - backup success
+        - buffer busy waits
+        - locks
     o karma.conf
-    - specify frames/no frames/no tables support
-    - specify no html pages generated, text only
-    - vertical/horizontal arrangement option
+        - specify frames/no frames/no tables support
+        - specify no html pages generated, text only
+        - vertical/horizontal arrangement option
     o whom to contact messages
     o look at adding graphing support with
         Cricket
 
-    o resetting services, once you've seen them, turn back to green
-      (not sure if this fits into the non-CGI thinking so far...)
+    o resetting services, once you've seen them, turn back to green (not
+    sure if this fits into the non-CGI thinking so far...)
     o 7.x issues

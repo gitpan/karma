@@ -3,24 +3,22 @@ NAME
 
 Introduction
     Karma has been designed with security in mind, from both the OS
-    perspective and the database perspective. If you find any
-    security related problems or bugs, please be sure to email them
-    to me.
+    perspective and the database perspective. If you find any security
+    related problems or bugs, please be sure to email them to me.
 
 Database Security
-    I've created associated scripts in the "sql" directory to
-    provide a way to easily create a user for running karma. Notice
-    that the user is created with "SELECT ANY TABLE" privilages.
-    This will prevent karma from being able to modify anything in
-    your database. Though it does not make any such attempt, this
-    provides peace of mind.
+    I've created associated scripts in the "sql" directory to provide a way
+    to easily create a user for running karma. Notice that the user is
+    created with "SELECT ANY TABLE" privilages. This will prevent karma from
+    being able to modify anything in your database. Though it does not make
+    any such attempt, this provides peace of mind.
 
 OS Level Security
-    Karma does not run as a cgi script, and things are done that way
-    for a number of reasons. For one, it protects the database from
-    many iterations of a cgi script which could potentially impact
-    performance. For another it virtually eliminates cgi-bin related
-    security issues. The html pages which are ultimately loaded into
-    a browser are prebuilt, and static for each iteration until
-    karma wakes up again, and refreshes them.
+    Karma does not run as a cgi script, and things are done that way for a
+    number of reasons. For one, it protects the database from many
+    iterations of a cgi script which could potentially impact performance.
+    For another it virtually eliminates cgi-bin related security issues. The
+    html pages which are ultimately loaded into a browser are prebuilt, and
+    static for each iteration until karma wakes up again, and refreshes
+    them.
 

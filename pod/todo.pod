@@ -14,21 +14,21 @@ versions of karma.
 =over 4
 
 =item
-o remaining Win32 problems, check email notification
+o 2-3 day running test
 
 =back
 
-=head1 0.9.8
+=head1 0.9.9
 
 =over 4
 
 =item
-o decide on how to handle redo-log switching exception, a la D. Lawlie
-
-=item
-o alertlog monitoring should be verifiable even when no errors found
-
-=item
-o extents checking should be >=, should use %, not number for thresholds
+o document explaining Win32 usage, limitations, and issues
 
 =back
+
+
+
+
+
+

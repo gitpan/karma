@@ -2,20 +2,20 @@ NAME
     Karma - Quickstart Guide
 
 DESCRIPTION
-    You can get started quickly and easily with karma by following
-    these directions.
+    You can get started quickly and easily with karma by following these
+    directions.
 
 Details
     o Edit the karma.conf file
-    o Make sure your database is running, and from the karma
-      directory issue this command:
+    o Make sure your database is running, and from the karma directory issue
+    this command:
         `$ bin/karmactl -s'
 
-    o Open the file doc_root/index.html with a browser
-      (you don't necessarily need a webserver at all).
-    If it isn't obvious already, you have to have Oracle, DBI, DBD-
-    Oracle and Perl installed for everything to work. You'll also
-    need Mail::Send which comes with the MailTools module.
+    o Open the file doc_root/index.html with a browser (you don't
+    necessarily need a webserver at all).
+    If it isn't obvious already, you have to have Oracle, DBI, DBD-Oracle
+    and Perl installed for everything to work. You'll also need Mail::Send
+    which comes with the MailTools module.
 
     See also:
 

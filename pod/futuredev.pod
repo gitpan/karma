@@ -100,7 +100,7 @@ o info pages include warning, alert values
 =back
 
 =item
-o NT issues
+o remaining Win32 problems, check email notification
 
 =over 4
 
@@ -139,6 +139,20 @@ o log statuses over time, use cricket for graphing
 
 =item
 o table only data which we can include in another html page
+
+=item
+o karmagentd should have trimming functionality for when alert or os
+  stats tables get too big
+
+=item
+o is the os stats interval configurable?
+
+=item
+o weekly reports via email
+
+=item 
+o karmactl -u for "UP" or not (returns 0/1) useful for other
+  monitoring systems
 
 =back
 

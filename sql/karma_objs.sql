@@ -35,3 +35,16 @@ STORAGE (
 	maxextents	unlimited);
 
 	
+PROMPT Creating karma_agent table...
+CREATE TABLE karma_agent (
+	id		varchar2(25),
+	frequency	varchar2(3),
+	timestamp	DATE)
+STORAGE (
+	initial 	128k
+	next		128k
+	pctincrease	0
+	minextents 	1
+	maxextents 	unlimited);
+
+INSERT INTO karma_agent VALUES ('LASTUPDATE', '5', sysdate);
