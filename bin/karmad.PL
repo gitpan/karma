@@ -15,7 +15,7 @@ print OUT <<'!NO!SUBS!';
 
 #------------------------------------------------------------------
 # 
-# Karma Copyright (C) 2000  Sean Hull <shull@pobox.com>
+# Karma Copyright (C) 1999  Sean Hull <shull@pobox.com>
 #
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -261,7 +261,7 @@ $main::NOTIFY_WAKEUP = $main::cWAKEUP;
 # default notify minutes
 #
 $main::NOTIFY_WAKEUP = $main::cWAKEUP;
-#$main::cNOTIFY_MSG = $main::cFULL_EMAIL;
+$main::cNOTIFY_MSG = $main::cFULL_EMAIL;
 
 #
 # HTML COLORS
@@ -813,7 +813,7 @@ sub setConfigEmail ($$$);
 sub setPrefGroup ($$);
 sub doNotification ($$);
 sub doNotifyCheck ();
-sub sendNotification ($$$$);
+sub sendNotification ($$$);
 sub checkService ($$);
 sub shouldUpdateService ($$$);
 sub shouldShowService ($$);
@@ -3536,15 +3536,12 @@ sub setConfigEmail ($$$) {
 	debugMessage ("setConfigEmail:$inPrefGroup - inEmails is undefined...\n", 2);
     }
 
-    if (($inSize =~ /^$main::cFULL_EMAIL$/) || 
-	($inSize =~ /^$main::cSHORT_EMAIL$/)) {
-	my $i = 0;
-	my @emails = split ("," , $inEmails);
-	my $count = scalar @emails;
-	
-	for ($i = 0; $i < $count; $i++) {
-	    push (@{$main::config_email{$inPrefGroup}{$inSize}}, $emails[$i]);
-	}
+    my $i = 0;
+    my @emails = split ("," , $inEmails);
+    my $count = scalar @emails;
+
+    for ($i = 0; $i < $count; $i++) {
+	push (@{$main::config_email{$inPrefGroup}{$inSize}}, $emails[$i]);
     }
 }
 
@@ -3946,14 +3943,6 @@ sub catchHUP {
     }
 
     #
-    # clean up email configuration hash
-    #
-    foreach $key (keys %main::config_email) {
-	undef $main::config_email{$key};
-    }
-
-
-    #
     # assume no columns are shown again
     #
     $main::names{shown}{redolog}       = 0;
@@ -3993,35 +3982,43 @@ sub getUptimeString ($) {
     my $numMins = '00';
     my $uptimeString = undef;
     my $uptimeSecs = $main::currTime - $startTime;
-    my $remain = undef;
 
     #
     # compute days
     #
     if ($uptimeSecs > 86400) {
-	$remain = $uptimeSecs % 86400;
-	$numDays = ($uptimeSecs - $remain) / 86400;
-	$uptimeSecs = $remain;
+	$numDays = $uptimeSecs % 86400;
     }
     
     #
     # compute hours
     #
     if ($uptimeSecs > 3600) {
-	$remain = $uptimeSecs % 3600;
-	$numHours = ($uptimeSecs - $remain) / 3600;
-	$numHours = padNum ($numHours, 2);
-	$uptimeSecs = $remain;
+	if (defined $numDays) {
+	    $numHours = ($uptimeSecs - $numDays * 86400) % 3600;
+	} else {
+	    $numHours = $uptimeSecs % 3600;
+	}
+#	if (length $numHours < 2) {
+#	    $numHours .= '0';
+#	}
     }
 
     #
     # compute minutes
     #
     if ($uptimeSecs > 60) {
-	$remain = $uptimeSecs % 60;
-	$numMins = ($uptimeSecs - $remain) / 60;
-	$numMins = padNum ($numMins, 2);
-	$uptimeSecs = $remain;
+	if (defined $numDays) {
+	    $numMins =
+		($uptimeSecs - $numDays * 86400 - $numHours * 3600) % 60;
+	} elsif (defined $numHours) {
+	    $numMins = ($uptimeSecs - $numHours * 3600) % 60;
+	} else {
+	    $numMins = $uptimeSecs % 60;
+	}
+#	if (length $numMins < 2) {
+#	    $numMins .= '0';
+#	}
     }
     
     $uptimeString = 'uptime: ';
@@ -4063,90 +4060,21 @@ sub showStatus {
     my $tnsKey = '';
 
     open (FIFO, ">$main::KARMA_FIFO_NAME");
-    print FIFO ("\n");
     print FIFO ("karmad started at $startTimeStr, $uptimeString, pid:$main::KARMA_PID\n");
-
-#    if ($main::USE_EMAIL_NOTIFICATION == 1) {
-#	print FIFO ("Using EMAIL for notification.\n");
-#    } else {
-#	print FIFO ("Using LOGFILE for notification.\n");
-#    }
-
-    print FIFO ("\n");
-    #
-    # new stuff
-    # show configuration information in status report
-    #
-    print FIFO ("-- CONFIGURATION --\n");
-    print FIFO ("WORKING DIR:$main::wd\n");
-    print FIFO ("   LOG FILE:$main::LOG_FILE_NAME\n");
-    print FIFO ("CONFIG FILE:$main::CONF_FILE_NAME\n");
-    print FIFO (" INDEX FILE:$main::INDEX_FILE_NAME\n");
-    print FIFO ("   PID FILE:$main::PID_FILE_NAME\n");
-    print FIFO ("DOCROOT DIR:$main::KARMA_DOC_ROOT\n");
-    print FIFO (" KARMA HOME:$main::KARMA_HOME\n");
-    print FIFO ("\n");
-    print FIFO ("-- STATUS OF MONITORED DBs --\n");
-
-
+    if ($main::USE_EMAIL_NOTIFICATION == 1) {
+	print FIFO ("Using EMAIL for notification.\n");
+    } else {
+	print FIFO ("Using LOGFILE for notification.\n");
+    }
     foreach $tnsKey (keys %main::db_info) {
 
 	$thePrefGroup = getPrefGroup ($tnsKey);
-
-
-
-	# print the DB:TNSNAME UP/DOWN, prefgroup:group line
-	#
 #	$thePrefGroup = $main::db_info{$tnsKey}[$main::cDB_PREFGROUP];
 	$dbStatus = 'DOWN';
 	if (defined $main::db_info{$tnsKey}[$main::cDB_HANDLE]) {
 	    $dbStatus = 'UP';
 	}
-	print FIFO ("  DB:$tnsKey $dbStatus, Prefgroup:$thePrefGroup\n");
-
-
-	# short email addresses for this prefgroup (if any)
-	#
-#	if (defined $main::config_email{$thePrefGroup}{$main::cSHORT_EMAIL}[0]) {
-#	    print FIFO ('     SHORT email notification to: ');
-#	    my $aStr = 'TEST - SHORT';#getArrayString
-		#(@{$main::config_email{$thePrefGroup}{$main::cSHORT_EMAIL}});
-#	    print FIFO $aStr;
-#	    print FIFO ("\n");
-#	}
-
-	# full email addresses for this prefgroup (if any)
-	#
-#	if (defined $main::config_email{$thePrefGroup}{$main::cFULL_EMAIL}[0]) {
-#	    print FIFO ('     FULL email notification to: ');
-#	    my $aStr = 'TEST - FULL';#getArrayString
-#		#(@{$main::config_email{$thePrefGroup}{$main::cFULL_EMAIL}});
-#	    print FIFO $aStr;
-#	    print FIFO ("\n");
-#	}
-
-	# warning services, and frequency for this prefgroup (if any) 
-	#
-#	if (defined $main::config_notify{$thePrefGroup}{$main::cNOTIFY_WARN}[0]) {
-#	    print FIFO ('     WARNINGs sent every ');
-	    #print FIFO $main::config_notify{$thePrefGroup}{$main::cNOTIFY_WARN}[$main::cNOTIFY_INT];
-#	    print FIFO (' minutes for: ');
-	    #print FIFO @{$main::config_notify{$thePrefGroup}{$main::cNOTIFY_WARN}[$main::cNOTIFY_SERV]};
-#	    print FIFO ("\n");
-#	}
-
-	# alert services, and frequency for this prefgroup (if any)
-	#
-#	if (defined $main::config_notify{$thePrefGroup}{$main::cNOTIFY_ALRT}[0]) {
-#	    print FIFO ('     ALERTs sent every ');
-#	    #print FIFO $main::config_notify{$thePrefGroup}{$main::cNOTIFY_ALRT}[$main::cNOTIFY_INT];
-#	    print FIFO (' minutes for: ');
-#	    #print FIFO @{$main::config_notify{$thePrefGroup}{$main::cNOTIFY_ALRT}[$main::cNOTIFY_SERV]};
-#	    print FIFO ("\n");
-#	}
-
-
-
+	print FIFO ("  DB:$tnsKey $dbStatus, Prefgroup:$thePrefGroup - services:\n");
 
 #	foreach $servKey (keys %{$main::config_info{$thePrefGroup}}) {
 	foreach $servKey (keys %{$main::names{long}}) {
@@ -4165,26 +4093,8 @@ sub showStatus {
 
     }
 
-    print FIFO ("\n");
     close (FIFO);
 }
-
-
-#-----------------------------------------------------------------------
-#
-#
-#
-#-----------------------------------------------------------------------
-sub getArrayString (@) {
-    my (@inArray) = @_;
-    my $retString = undef;
-    my $j = 0;
-    while (defined $inArray[$j]) {
-	$retString .= $inArray[$j] . ',';
-    }
-    return $retString;
-}
-
 
 #-----------------------------------------------------------------------
 #
@@ -4247,34 +4157,62 @@ sub doNotification ($$) {
     if ($doNotify == 1) {
 	$alertServices = getNotifyServices ($prefGroup, $main::cNOTIFY_ALRT);
 
-	foreach $notifySize (keys %{$main::config_email{$prefGroup}}) {
-
-	    $j = 0;
-	    $notifyServices = undef;
-	    if (defined ($alertServices)) {
-		$notifyMinutes = 
-		    getNotifyMinutes ($prefGroup, $main::cNOTIFY_ALRT);
+	if (defined ($alertServices)) {
+#	    $notifySize = getNotifySize ($prefGroup, $main::cNOTIFY_ALRT);
+	    $notifySize = getEmailSize ($prefGroup);
+	    $notifyMinutes = 
+		getNotifyMinutes ($prefGroup, $main::cNOTIFY_ALRT);
 #	    $servCount = scalar $alertServices;
-		
-		debugMessage ("doNotification: YES PG:$prefGroup, S:$notifySize M:$notifyMinutes\n", 2);
-		
-		$i = 0;
-		while (defined $alertServices->[$i]) {
+
+	    debugMessage ("doNotification: YES PG:$prefGroup, S:$notifySize M:$notifyMinutes\n", 2);
+
+	    $i = 0;
+	    while (defined $alertServices->[$i]) {
 #	    for ($i = 0; $i < $servCount; $i++) {
-		    $currStatus = getCurrStatus ($alertServices->[$i], $inTNS);
-		    if ((((defined ($inMinutes)) && ($inMinutes == 0)) ||
-			 ((defined ($notifyMinutes)) &&
-			  ($notifyMinutes > 0) && 
-			  ($inMinutes % $notifyMinutes == 0))) &&
-			($currStatus == $main::cALERT_STATUS)) {
-			$send_msg = 1;
+		$currStatus = getCurrStatus ($alertServices->[$i], $inTNS);
+		if ((((defined ($inMinutes)) && ($inMinutes == 0)) ||
+		     ((defined ($notifyMinutes)) &&
+		      ($notifyMinutes > 0) && 
+		      ($inMinutes % $notifyMinutes == 0))) &&
+		    ($currStatus == $main::cALERT_STATUS)) {
+		    $send_msg = 1;
 #		    push (@notifyServices, $alertServices->[$i]);
-			if ($notifySize =~ /^$main::cSHORT_EMAIL$/) {
-			    $notifyServices->[$j] =
-				$main::names{short}{$alertServices->[$i]};
-			} else {
-			    $notifyServices->[$j] = $alertServices->[$i];
-			}
+		    $notifyServices->[$j] = $alertServices->[$i];
+		    $j++;
+		}
+		$i++;
+	    }
+	} else {
+	    # should log message here
+	}
+	if ($send_msg == 1) {
+	    sendNotification ($main::cNOTIFY_ALRT,
+			       $inTNS,
+			       $notifyServices);
+	} else {
+	    $send_msg = 0;
+	    $notifySize = 'full';
+	    $warnServices = 
+		getNotifyServices ($prefGroup, $main::cNOTIFY_WARN);
+
+	    if (defined ($warnServices)) {
+#		$notifySize = getNotifySize ($prefGroup, $main::cNOTIFY_WARN);
+		$notifySize = getEmailSize ($prefGroup);
+		#$servCount = scalar @warnServices;
+
+		$i = 0;
+		$j = 0;
+		while (defined $warnServices->[$i]) {
+#		for ($i = 0; $i < $servCount; $i++) {
+		    $currStatus = getCurrStatus ($warnServices->[$i], $inTNS);
+		    if ((($inMinutes == 0) ||
+			 ((defined ($notifyMinutes)) &&
+			  ($notifyMinutes > 0) &&
+			  ($inMinutes % $notifyMinutes == 0))) &&
+			($currStatus == $main::cWARNING_STATUS)) {
+			$send_msg = 1;
+			#push (@notifyServices, $warnServices->[$i]);
+			$notifyServices->[$j] = $warnServices->[$i];
 			$j++;
 		    }
 		    $i++;
@@ -4283,55 +4221,104 @@ sub doNotification ($$) {
 		# should log message here
 	    }
 	    if ($send_msg == 1) {
-		sendNotification ($main::cNOTIFY_ALRT,
-				  $inTNS,
-				  $notifySize,
-				  $notifyServices);
-	    } else {
-		$notifyServices = undef;
-		$send_msg = 0;
-		$warnServices = 
-		    getNotifyServices ($prefGroup, $main::cNOTIFY_WARN);
-		
-		if (defined ($warnServices)) {
-		    #$servCount = scalar @warnServices;
-		    
-		    $i = 0;
-		    $j = 0;
-		    while (defined $warnServices->[$i]) {
-#		for ($i = 0; $i < $servCount; $i++) {
-			$currStatus = getCurrStatus ($warnServices->[$i], $inTNS);
-			if ((($inMinutes == 0) ||
-			     ((defined ($notifyMinutes)) &&
-			      ($notifyMinutes > 0) &&
-			      ($inMinutes % $notifyMinutes == 0))) &&
-			    ($currStatus == $main::cWARNING_STATUS)) {
-			    $send_msg = 1;
-			    #push (@notifyServices, $warnServices->[$i]);
-			    if ($notifySize =~ /^$main::cSHORT_EMAIL$/) {
-				$notifyServices->[$j] =
-				    $main::names{short}{$warnServices->[$i]};
-			    } else {
-				$notifyServices->[$j] = $warnServices->[$i];
-			    }
-			    $j++;
-			}
-			$i++;
-		    }
-		} else {
-		    # should log message here
-		}
-		if ($send_msg == 1) {
-		    sendNotification ($main::cNOTIFY_WARN,
-				      $inTNS,
-				      $notifySize,
-				      $notifyServices);
-		}
-	    }    
+		sendNotification ($main::cNOTIFY_WARN,
+				   $inTNS,
+				   $notifyServices);
+	    }
 	}
+
     }
 }
 
+
+#-----------------------------------------------------------------------
+#
+# sends email notification
+# 
+# one email gets sent out per database per email address...
+#
+# Want to add a check here to see if Mail::Send is installed, if
+# not, log a message to the logfile, and return...
+#
+# Also, still need to add interval checking... don't mail unless the 
+# specified interval has passed
+#
+#-----------------------------------------------------------------------
+sub doNotification_old ($$) {
+    my ($inTNS, $inMinutes) = @_;
+    my $send_alert = 0;
+    my $send_warn = 0;
+    my $pref_group = getPrefGroup ($inTNS);
+#    my $pref_group = $main::db_info{$inTNS}[$main::cDB_PREFGROUP];
+
+    if (defined ($main::config_notify{$pref_group}{$main::cNOTIFY_ALRT}[0])) {
+
+	#
+	# send alert notification
+	#
+	
+	my @alertServices = @{$main::config_notify{$pref_group}{$main::cNOTIFY_ALRT}[2]};
+	my $alertSize = $main::config_notify{$pref_group}{$main::cNOTIFY_ALRT}[1];
+	my @theServices = ();
+	
+	my $sent_message = 0;
+	my $count = 0;
+	my $i = 0;
+
+	if (defined (@alertServices)) {
+	    $count = scalar @alertServices;
+	    for ($i = 0; $i < $count; $i++) {
+		
+
+#	print ("do_notify: P:$pref_group M:$inMinutes A:$main::config_notify{$pref_group}{$main::cNOTIFY_ALRT}[0]\n");
+		if ((defined ($main::stats{$alertServices[$i]}{$inTNS}[$main::cSTATUS])) && 
+		    (($inMinutes == 0) || ($inMinutes % $main::config_notify{$pref_group}{$main::cNOTIFY_ALRT}[0] == 0)) &&
+		    ($main::stats{$alertServices[$i]}{$inTNS}[$main::cSTATUS] == $main::cALERT_STATUS)) {
+		    $send_alert = 1;
+		    push (@theServices, $alertServices[$i]);
+		}
+	    }
+	    
+	} else {
+	    # should log message here
+	}
+	if ($send_alert == 1) {
+#	    sendNotification ($main::cNOTIFY_ALRT, $alertSize, $inTNS, @theServices);
+	    sendNotification ($main::cNOTIFY_ALRT, $inTNS, @theServices);
+	}
+    } 
+
+    if (($send_alert == 0) && (defined ($main::config_notify{$pref_group}{$main::cNOTIFY_WARN}[0]))) {
+
+	my @warnServices = @{$main::config_notify{$pref_group}{$main::cNOTIFY_WARN}[2]};
+	my $warnSize = $main::config_notify{$pref_group}{$main::cNOTIFY_WARN}[1];
+	my @theServices = ();
+	my $count = 0;	    
+	my $i = 0;
+
+	if (defined (@warnServices)) {
+	    $count = scalar @warnServices;
+	    for ($i = 0; $i < $count; $i++) {
+		
+#		print ("do_notify: P:$pref_group M:$inMinutes W:$main::config_notify{$pref_group}{$main::cNOTIFY_WARN}[0]\n");
+		if ((defined ($main::stats{$warnServices[$i]}{$inTNS}[$main::cSTATUS])) && 
+		    (($inMinutes == 0) || ($inMinutes % $main::config_notify{$pref_group}{$main::cNOTIFY_WARN}[0] == 0)) &&
+		    ($main::stats{$warnServices[$i]}{$inTNS}[$main::cSTATUS] == $main::cWARNING_STATUS)) {
+		    $send_warn = 1;
+		    push (@theServices, $warnServices[$i]);
+		}
+	    }
+	    
+	    if ($send_warn == 1) {
+#		sendNotification ($main::cNOTIFY_WARN, $warnSize, $inTNS, @theServices);
+		sendNotification ($main::cNOTIFY_WARN, $inTNS, @theServices);
+	    }
+	} else {
+	    # should log a message here...
+	}
+
+    }
+}
 
 #-----------------------------------------------------------------------
 #
@@ -4339,18 +4326,18 @@ sub doNotification ($$) {
 # out to all the right people
 #
 #-----------------------------------------------------------------------
-sub sendNotification ($$$$) {
-    my ($inType, $inTNS, $inSize, $inServices) = @_;
+sub sendNotification ($$$) {
+    my ($inType, $inTNS, $inServices) = @_;
     my $pref_group = getPrefGroup ($inTNS);
 #    my $pref_group = $main::db_info{$inTNS}[$main::cDB_PREFGROUP];
     my $subject = '';
     my $email_count = 0;
     my @emails = undef;
-    #my $keySize = undef;
+    my $keySize = undef;
 
-    #foreach $keySize (keys %{$main::config_email{$pref_group}}) {
+    foreach $keySize (keys %{$main::config_email{$pref_group}}) {
 
-	@emails = getNotifyEmails ($pref_group, $inSize);
+	@emails = getNotifyEmails ($pref_group, $keySize);
 
 	#
 	# make sure there are email addresses defined
@@ -4383,7 +4370,7 @@ sub sendNotification ($$$$) {
 		$i++;
 	    }
 	    
-	    if (not ($inSize =~ /^$main::cSHORT_EMAIL$/i)) {
+	    if (not ($keySize =~ /^$main::cSHORT_EMAIL$/i)) {
 		
 		$subject = $message;
 		$message = "$inTNS database ";
@@ -4426,7 +4413,7 @@ sub sendNotification ($$$$) {
 		logMessage ("EMAILING $email - $message\n");
 	    }
 	}
-    #}
+    }
 }
 
 
@@ -5041,11 +5028,10 @@ sub getCurrStatus ($$) {
 #
 #
 #-----------------------------------------------------------------------
-#sub getEmailSize ($) {
-#    my ($inPrefGroup) = @_;
-#    #return $main::cNOTIFY_MSG;
-#    $main::config_email
-#}
+sub getEmailSize ($) {
+    my ($inPrefGroup) = @_;
+    return $main::cNOTIFY_MSG;
+}
 
 #sub getNotifySize ($$) {
 #    my ($inPrefGroup, $inType) = @_;

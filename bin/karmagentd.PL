@@ -14,7 +14,7 @@ $Config{'startperl'} -w
 print OUT <<'!NO!SUBS!';
 #------------------------------------------------------------------
 # 
-# Karma Copyright (C) 2000  Sean Hull <shull@pobox.com>
+# Karma Copyright (C) 1999  Sean Hull <shull@pobox.com>
 #
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -153,10 +153,8 @@ if (defined $main::opt_r) {
 $main::TNS = '';
 if (defined $main::opt_t) {
     $main::TNS = $main::opt_t;
-} 
-$main::DSN = "DBI:Oracle:$main::TNS";
-if (defined ($ENV{DBI_DSN})) {
-    $main::DSN = $ENV{DBI_DSN};
+} elsif (defined ($ENV{DBI_DSN})) {
+    $main::TNS = $ENV{DBI_DSN};
 }
 #
 # default to the OFA location
@@ -188,10 +186,10 @@ if (defined $main::opt_a) {
     } else {
 	if (($main::opt_a =~ /^\./) ||
 	    ($main::opt_a =~ /^\//)) {
-	    $main::ALERTLOG_FILE = $main::opt_a;
-	} else {
 	    $main::ALERTLOG_FILE = $main::wd
 		. $main::PATH_DELIM . $main::opt_a;
+	} else {
+	    $main::ALERTLOG_FILE = $main::opt_a;
 	}
     }
 }
@@ -206,10 +204,6 @@ if (defined $main::opt_p) {
     # read password new way, without echo
     ReadMode ('noecho');
     $main::PASS = ReadLine(0);
-
-    # this is pretty important.  Without login always fails because
-    # the password is wrong.
-    chomp($main::PASS);
     ReadMode ('normal');
     print ("\n");
 
@@ -361,13 +355,13 @@ $main::agentStatement =
 #
 # database handle
 #
-debugMessage ("Connecting - DSN:$main::DSN USER:$main::USER PASS:$main::PASS\n", 2);
+debugMessage ("Connecting - TNS:$main::TNS USER:$main::USER PASS:$main::PASS\n", 2);
 
 $main::dbh = undef;
 $main::uptimeSth = undef;
 $main::alertlogSth = undef;
 
-#$main::dbh = DBI->connect ($main::DSN, $main::USER, $main::PASS);
+#$main::dbh = DBI->connect ("DBI:Oracle:$main::TNS", $main::USER, $main::PASS);
 #print ("before first dbConnect\n");
 dbConnect ();
 
@@ -375,12 +369,12 @@ dbConnect ();
 if (defined $main::dbh) {
     # logfile isn't open yet...
     # only visible with debug options on...
-    #logMessage ("Successfully connected to $main::USER DSN:$main::DSN...\n");
-    print ("Successfully connected to $main::USER DSN:$main::DSN...\n");
+    #logMessage ("Successfully connected to $main::USER\@$main::TNS...\n");
+    print ("Successfully connected to $main::USER\@$main::TNS...\n");
 } else {
     # logfile isn't open yet
-    print ("Failed to connect to $main::USER DSN:$main::DSN - Exiting.\n");
-    #logMessage ("Failed to connect to $main::USER DSN:$main::DSN - Exiting.\n");
+    print ("Failed to connect to $main::USER\@$main::TNS - Exiting.\n");
+    #logMessage ("Failed to connect to $main::USER\@$main::TNS - Exiting.\n");
     exit 1;
 }
 
@@ -634,7 +628,7 @@ sub catchTerm {
 #----------------------------------------------------------------
 sub dbConnect () {
     $main::dbh = undef;
-    $main::dbh = DBI->connect ($main::DSN, $main::USER, $main::PASS);
+    $main::dbh = DBI->connect ("DBI:Oracle:$main::TNS", $main::USER, $main::PASS);
 
 #    print ("inside dbConnect\n");
     if (defined $DBI::errstr) {
@@ -642,63 +636,23 @@ sub dbConnect () {
     }
 
     if (defined $main::dbh) {
-
-	my $haveOS = checkForTable ('KARMA_OS_STATS');
-	my $haveAGENT = checkForTable ('KARMA_AGENT');
-	my $haveALERT = checkForTable ('KARMA_ALERTLOG_ERRORS');
-
-	if (($haveOS == 1) && ($haveAGENT == 1) && ($haveALERT == 1)) {
-	    #
-	    # prepare the statements
-	    #
-	    $main::uptimeSth = undef;
-	    $main::uptimeSth = $main::dbh->prepare ($main::uptimeStatement);
-	    if (defined $DBI::errstr) {
-		logMessageWTime ("doConnect uptime prepare - $DBI::errstr\n");
-	    }
-	    
-	    $main::alertlogSth = undef;
-	    $main::alertlogSth = $main::dbh->prepare ($main::alertlogStatement);
-	    if (defined $DBI::errstr) {
-		logMessageWTime ("dbConnect alertlog prepare - $DBI::errstr\n");
-	    }
-	} else {
-	    if ($haveOS == 0) {
-		logMessageWTime ("dbConnect: table KARMA_OS_STATS not found - Exiting\n");
-	    } elsif ($haveAGENT == 0) {
-		logMessageWTime ("dbConnect: table KARMA_AGENT not found - Exiting\n");
-	    } elsif ($haveALERT == 0) {
-		logMessageWTime ("dbConnect: table KARMA_ALERT not found - Exiting\n");
-	    }
-
-	    $main::dbh->disconnect;
-	    exit 1;
+	#
+	# prepare the statements
+	#
+	$main::uptimeSth = undef;
+	$main::uptimeSth = $main::dbh->prepare ($main::uptimeStatement);
+	if (defined $DBI::errstr) {
+	    logMessageWTime ("doConnect uptime prepare - $DBI::errstr\n");
+	}
+	
+	$main::alertlogSth = undef;
+	$main::alertlogSth = $main::dbh->prepare ($main::alertlogStatement);
+	if (defined $DBI::errstr) {
+	    logMessageWTime ("dbConnect alertlog prepare - $DBI::errstr\n");
 	}
     }
 }
 
-#----------------------------------------------------------------
-#
-#
-#
-#----------------------------------------------------------------
-sub checkForTable ($) {
-    my ($inTable) = @_;
-
-    my $retval = 0;
-
-    if (defined $main::dbh) {
-	my $sth = $main::dbh->prepare ('SELECT table_name FROM user_tables WHERE table_name = ?');
-	my $rv = $sth->execute($inTable);
-	my $rowref = $sth->fetchrow_arrayref;
-	if ((defined $rowref) && ($rowref->[0] =~ /^$inTable$/)) {
-	    $retval = 1;
-	} 
-	$sth->finish;
-    }
-
-    return $retval;
-}
 
 #----------------------------------------------------------------
 #

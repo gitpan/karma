@@ -35,11 +35,6 @@ STORAGE (
 	maxextents	unlimited);
 
 	
--- there should always be only one row in this table, so just
--- in case it existed already, we truncate first...
-
-TRUNCATE TABLE karma_agent;
-
 PROMPT Creating karma_agent table...
 CREATE TABLE karma_agent (
 	id		varchar2(25),
