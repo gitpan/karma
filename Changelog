@@ -56,13 +56,30 @@ Version 0.7.0
 09.29.99	o fixed problem with notification and intervals
 		o fixed problem time truncation problem (intervals)
 		o karmagentd cleans up & exits with TERM signal 
+09.29.99	o released
 
-
-
-
-
-
-
-
-
-
+Version 0.9.0
+11.04.99	o fixed time updating problems
+                o handle autoextend datafiles (set to no_status)
+11.14.99	o karmactl status returns correct start time
+11.15.99        o added deftran queue monitoring
+                o added deftran error monitoring
+11.17.99	o got repqueue, reperror working, info pages etc
+		o finally got use strict working
+		o created karma.pm for common code
+11.22.99	o added preference group sections on generated karma
+                  monitor page
+		o on/off flag in config file
+11.25.99	o when multiple pref groups have different services
+                  enabled, unmonitored services get "-" in table
+		o karmactl -f forces a refresh of all monitored services
+                  against all monitored databases
+		o cleaned up pref_groups datastructures
+		o bkgd karmad, karmagentd automatically with fork ()
+11.27.99	o fixed services updating after db shutdown
+		o moved full/short option to email_notify config
+		o cleaned up notification
+		o created basic config file
+11.29.99	o added help pages for repqueue, reperror
+		o created prefgroups config file
+		o repqueue, reperror help files

@@ -29,91 +29,94 @@
 #
 # current version
 #
-$VERSION="0.7.0";
+#$VERSION="0.9.0";
 require 5.004;
-#use strict;
+use strict;
 use Getopt::Std;
-use Socket;
 use IO::File;
+use karma;
 
-$KARMA_HOME = ".";
+$main::KARMA_HOME = ".";
 if (defined $ENV{KARMA_HOME}) {
-    $KARMA_HOME = $ENV{KARMA_HOME};
+    $main::KARMA_HOME = $ENV{KARMA_HOME};
 }
 
 #
 # look in the path if all else fails...
 #
-$KARMA = "karmad";
+$main::KARMA = "karmad";
 #
-# look for karmad in the KARMA_HOME
+# look for karmad in the main::KARMA_HOME
 #
 if ((defined $ENV{KARMA_HOME}) && 
     (-e "$ENV{KARMA_HOME}/karmad") &&
     (-x "$ENV{KARMA_HOME}/karmad")) {
-    $KARMA = "$ENV{KARMA_HOME}/karmad";
+    $main::KARMA = "$ENV{KARMA_HOME}/karmad";
 
 # 
 # look for it in the current directory
 #
 } elsif ((-e "./karmad") && (-x "./karmad")) {
-    $KARMA = "./karmad";
+    $main::KARMA = "./karmad";
 }
 
 
 
-$KARMA_FIFO_NAME = "$KARMA_HOME/.karmafifo";
-$KARMA_PID_FILE = "$KARMA_HOME/.karma.pid";
-$KARMA_DOC="$KARMA_HOME/doc_root";
-$DEL_CMD = "/bin/rm";
+$main::KARMA_FIFO_NAME = "$main::KARMA_HOME/.karmafifo";
+$main::KARMA_PID_FILE = "$main::KARMA_HOME/.karma.pid";
+$main::KARMA_DOC="$main::KARMA_HOME/doc_root";
+$main::DEL_CMD = "/bin/rm";
 
 
-#$opt_h = 0;
-$opt_s = undef;
-$opt_p = undef;
-$opt_r = undef;
-$opt_t = undef;
-$opt_w = undef;
-$opt_v = undef;
-$opt_i = undef;
-$opt_c = undef;
-$opt_l = undef;
-$opt_d = undef;
-getopts('hsprtwvi:k:l:c:d');
+#$main::opt_h = 0;
+$main::opt_s = undef;
+$main::opt_p = undef;
+$main::opt_r = undef;
+$main::opt_t = undef;
+$main::opt_w = undef;
+$main::opt_v = undef;
+$main::opt_i = undef;
+$main::opt_c = undef;
+$main::opt_l = undef;
+$main::opt_d = undef;
+$main::opt_f = undef;
+getopts('hspfrtwvi:k:l:c:d');
 
-if (defined ($opt_w)) {
+if (defined ($main::opt_w)) {
     print_warranty ();
 }
-if (defined ($opt_s)) {
+if (defined ($main::opt_s)) {
     start_karma ();
 }
 
 #
 # determine the process id if karma is already running
 #
-$KARMA_PID = 0;
-if (defined ($opt_i)) {
-    $KARMA_PID = $opt_i;
+$main::KARMA_PID = 0;
+if (defined ($main::opt_i)) {
+    $main::KARMA_PID = $main::opt_i;
 } else {
-    $KARMA_PID = get_pid ();
+    $main::KARMA_PID = get_pid ();
 }
 
-
-if (defined ($opt_p)) {
+if (defined ($main::opt_f)) {
+    refresh_karma ();
+}
+if (defined ($main::opt_p)) {
     stop_karma ();
 }
-if (defined ($opt_r)) {
+if (defined ($main::opt_r)) {
     reload_karma ();
 }
-if (defined ($opt_t)) {
+if (defined ($main::opt_t)) {
     status_karma ();
 }
-if (defined ($opt_v)) {
+if (defined ($main::opt_v)) {
     print_version ();
 }
-if (defined ($opt_d)) {
-    if (defined $opt_k) {
-	$KARMA_DOC=$opt_k;
+if (defined ($main::opt_d)) {
+    if (defined $main::opt_k) {
+	$main::KARMA_DOC=$main::opt_k;
     }
     cleanup_karma ();
 }
@@ -130,6 +133,7 @@ sub print_help () {
 	"\n",
 	" -h print help and exit\n",
 	" -v print version and exit\n",
+	" -f force a refresh of all service statuses\n",
 	" -w print warranty and exit\n",
 	" -s start karmad daemon\n",
 	" -p stop karmad daemon\n",
@@ -154,22 +158,28 @@ sub start_karma () {
 
     print ("Starting karma daemon");
  
-    my $COMMAND = "$KARMA";
-    if ($opt_l) {
-	print ", logfile: $opt_l";
-	$COMMAND .= " -l $opt_l";
+    my $COMMAND = "$main::KARMA";
+    if ($main::opt_l) {
+	print ", logfile: $main::opt_l";
+	$COMMAND .= " -l $main::opt_l";
     }
-    if ($opt_c) {
-	print ", config: $opt_c";
-	$COMMAND .= " -c $opt_c";
+    if ($main::opt_c) {
+	print ", config: $main::opt_c";
+	$COMMAND .= " -c $main::opt_c";
     }
-    if ($opt_k) {
-	print ", doc_root: $opt_k";
-	$COMMAND .= " -k $opt_k";
+    if ($main::opt_k) {
+	print ", doc_root: $main::opt_k";
+	$COMMAND .= " -k $main::opt_k";
     }
     print "...\n";
 
-    $COMMAND .= " &";
+#    $COMMAND .= " &";
+
+#    my $pid = 0;
+#    if ($pid = fork) {
+#	system ($COMMAND);
+#    } 
+
     system ($COMMAND);
 
     #
@@ -183,15 +193,35 @@ sub start_karma () {
 
 #-----------------------------------------------------------------------
 #
-# get KARMA_PID from lock file, send kill signal (TERM)
+# get main::KARMA_PID from lock file, send kill signal (TERM)
 #
 #-----------------------------------------------------------------------
 sub stop_karma () {
 
-    if ($KARMA_PID > 0) {
-	print ("Stopping karma daemon - pid:$KARMA_PID...\n");
-	kill TERM => $KARMA_PID
-	    or die ("Can't stop pid:$KARMA_PID - $!\n");
+    if ($main::KARMA_PID > 0) {
+	print ("Stopping karma daemon - pid:$main::KARMA_PID...\n");
+	kill TERM => $main::KARMA_PID
+	    or die ("Can't stop pid:$main::KARMA_PID - $!\n");
+    } else {
+	print
+	    "Can't determine process id from pid file, use -i to \n",
+	    "specify on the command line.\n";
+    }
+    exit;
+}
+
+
+#-----------------------------------------------------------------------
+#
+# give karmad the USR2 signal to make all service statuses refresh
+#
+#-----------------------------------------------------------------------
+sub refresh_karma () {
+
+    if ($main::KARMA_PID > 0) {
+	print ("Refreshing karma service statuses pid:$main::KARMA_PID...\n");
+	kill USR2 => $main::KARMA_PID
+	    or die ("Can't refresh pid:$main::KARMA_PID - $!\n");
     } else {
 	print
 	    "Can't determine process id from pid file, use -i to \n",
@@ -202,18 +232,19 @@ sub stop_karma () {
 
 #-----------------------------------------------------------------------
 #
-# get KARMA_PID from lock file, send USR1 signal
+# get main::KARMA_PID from lock file, send USR1 signal
 #
 #-----------------------------------------------------------------------
 sub status_karma () {
 
-    if ($KARMA_PID > 0) {
-#	print ("Getting status of karma daemon - pid:$KARMA_PID...\n");
+    my $line = "";
+    if ($main::KARMA_PID > 0) {
+#	print ("Getting status of karma daemon - pid:$main::KARMA_PID...\n");
 
-	kill USR1 => $KARMA_PID
-	    or die ("Can't get status of pid:$KARMA_PID - $!\n");
+	kill USR1 => $main::KARMA_PID
+	    or die ("Can't get status of pid:$main::KARMA_PID - $!\n");
 
-	open (FIFO, "<$KARMA_FIFO_NAME");
+	open (FIFO, "<$main::KARMA_FIFO_NAME");
 	while ($line = <FIFO>) {
 	    
 	    print ("$line");
@@ -233,17 +264,17 @@ sub status_karma () {
 sub cleanup_karma () {
 
     my $COMMAND = "";
-    if (-d $KARMA_DOC) {
-	if (-w $KARMA_DOC) {
-	    $COMMAND = "$DEL_CMD $KARMA_DOC/karma.html";
+    if (-d $main::KARMA_DOC) {
+	if (-w $main::KARMA_DOC) {
+	    $COMMAND = "$main::DEL_CMD $main::KARMA_DOC/karma.html";
 	    system ($COMMAND);
-	    $COMMAND = "$DEL_CMD $KARMA_DOC/info/*.html";
+	    $COMMAND = "$main::DEL_CMD $main::KARMA_DOC/info/*.html";
 	    system ($COMMAND);
 	} else {
-	    print ("Cannot delete dynamic karma files: $KARMA_DOC\n");
+	    print ("Cannot delete dynamic karma files: $main::KARMA_DOC\n");
 	}
     } else {
-	print ("Not a directory: $KARMA_DOC\n");
+	print ("Not a directory: $main::KARMA_DOC\n");
     }
     exit;
 }
@@ -257,10 +288,10 @@ sub cleanup_karma () {
 #-----------------------------------------------------------------------
 sub reload_karma () {
 
-    if ($KARMA_PID > 0) {
-	print ("Reloading karma.conf config pid:$KARMA_PID...\n");
-	kill HUP => $KARMA_PID
-	    or die ("Can't reread config file pid:$KARMA_PID - $!\n");
+    if ($main::KARMA_PID > 0) {
+	print ("Reloading karma.conf config pid:$main::KARMA_PID...\n");
+	kill HUP => $main::KARMA_PID
+	    or die ("Can't reread config file pid:$main::KARMA_PID - $!\n");
     } else {
 	print
 	    "Can't determine process id from pid file, use -i to \n",
@@ -271,67 +302,24 @@ sub reload_karma () {
 
 #-----------------------------------------------------------------------
 #
-# print version and exit
-#
-#-----------------------------------------------------------------------
-sub print_version () {
-    print 
-	"\n",
-	"  Karma v$VERSION Copyright (C) 1999 Sean Hull <shull\@pobox.com>\n",
-	"  Karma comes with ABSOLUTELY NO WARRANTY; for details\n",
-	"  type \"karmad -w\".  This is free software, and you are\n",
-	"  welcome to redistribute it under certain conditions.\n";
-
-    exit ;
-}
-
-
-#-----------------------------------------------------------------------
-#
-# GNU General Public License Warranty
-#
-#-----------------------------------------------------------------------
-sub print_warranty () {
-    print 
-	"\n",
-	"   Copyright (C) 1999  Sean Hull <shull\@pobox.com>\n",
-	"\n",
-	"   This program is free software; you can redistribute it and/or modify\n",
-	"   it under the terms of the GNU General Public License as published by\n",
-	"   the Free Software Foundation; either version 2 of the License, or\n",
-	"   (at your option) any later version.\n",
-	"\n",
-	"   This program is distributed in the hope that it will be useful,\n",
-	"   but WITHOUT ANY WARRANTY; without even the implied warranty of\n",
-	"   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n",
-	"   GNU General Public License for more details.\n",
-	"\n",
-	"   You should have received a copy of the GNU General Public License\n",
-	"   along with this program; if not, write to the Free Software\n",
-	"   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA\n",
-	"\n";
-
-
-   exit;
-
-}
-
-#-----------------------------------------------------------------------
-#
 #
 #
 #-----------------------------------------------------------------------
 sub get_pid () {
 
-    $karma_pid_file = new IO::File "<$KARMA_PID_FILE";
-    if ($karma_pid_file) {
-	$line = <$karma_pid_file>;
-	close ($karma_pid_file);
-	chomp ($line);
-	$line =~ s/\N//g;
-	return $line;
+    my $line = undef;
+
+    $main::KARMA_PID_file = new IO::File "<$main::KARMA_PID_FILE";
+    if (defined ($main::KARMA_PID_FILE)) {
+	$line = <$main::KARMA_PID_file>;
+	close ($main::KARMA_PID_file);
+	if (defined ($line)) {
+	    chomp ($line);
+	    $line =~ s/\N//g;
+	    return $line;
+	}
     } else {
-	print ("Can't seem to open pid file: $KARMA_PID_FILE - $!\n");
+	print ("Can't seem to open pid file: $main::KARMA_PID_FILE - $!\n");
     }
     return 0;
 }

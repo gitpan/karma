@@ -9,18 +9,17 @@ working on for a future release.
 --
 
 o lynx browser support (no frames, no tables?)
-o standard perl install
-o better perl docs (POD)
-o karmagentctl utility (start, stop...)
 o configuration check tool (reads karma.conf file)
 o web interface
   - using karmactl
   - editing karma.conf
 o more services monitored
-  - replication support
+  - hitratios dictcache, rowcache 
   - listener log monitor
   - trace/core file monitor
   - monitor sqlnet performance
 o karma.conf
   - specify frames/no frames/no tables support 
   - specify no html pages generated, text only
+  - vertical/horizontal arrangement option
+o whom to contact messages

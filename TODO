@@ -1,3 +1,14 @@
 
-TO DO LIST:
-
+- 1.0.0 -
+o std perl installer
+o docs, multiple formats from single src, Pod::HTML, Pod::Text, pod2html
+o further karmagentd testing, code cleanup (alert.log)
+o should checking status, or forcing refresh send out emails?
+o notify full includes url to info page
+o help page for adding new services
+o db down respects unmonitored services
+o docs, color contrast, test printing
+o info pages include warning, alert values
+o timestamps include date
+o NT testing, YIPEE!
+o credits.html
